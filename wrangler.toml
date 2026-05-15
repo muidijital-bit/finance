@@ -3,6 +3,11 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".vercel/output/static"
 
+[vars]
+ADMIN_EMAIL = "info@muimedya.com"
+ADMIN_PASSWORD_HASH = "d2f93aeda54ed45f9a3e9ef703bb5f18:ef71b0fdc503e112be18a94a77043285f7b3989cc408e513a4ca1c88048fe5b7"
+JWT_SECRET = "muimedya-secret-2026"
+
 [[d1_databases]]
 binding = "muimedya_finance"
 database_name = "muimedya-finance"
