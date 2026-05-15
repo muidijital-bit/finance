@@ -143,8 +143,13 @@ export default function BrandsPage() {
     setAddOpen(false);
   }
 
-  async function toggleBrandActive(id: string, isActive: boolean) {
-    await updateBrand(id, { isActive: !isActive });
+  async function toggleBrandActive(b: typeof brandStats[0]) {
+    if (b.dbId) {
+      await updateBrand(b.dbId, { isActive: !b.isActive });
+    } else {
+      // Brand not in DB yet — create it first, then it'll have isActive=false
+      await addBrand({ value: b.brand, label: b.label, color: b.color, isActive: false });
+    }
   }
 
   const resolvedTarget = targetBrand === '__custom__' ? targetCustom.trim() : targetBrand;
@@ -194,12 +199,10 @@ export default function BrandsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  {b.dbId && (
-                    <button onClick={() => toggleBrandActive(b.dbId!, b.isActive)}
-                      className="p-1 text-gray-400 hover:text-brand-500 transition-colors" title={b.isActive ? 'Pasife al' : 'Aktif et'}>
-                      {b.isActive ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
-                    </button>
-                  )}
+                  <button onClick={() => toggleBrandActive(b)}
+                    className="p-1 text-gray-400 hover:text-brand-500 transition-colors" title={b.isActive ? 'Pasife al' : 'Aktif et'}>
+                    {b.isActive ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
+                  </button>
                   <div className="text-xs font-semibold px-2 py-0.5 rounded-full"
                     style={{ backgroundColor: b.color + '18', color: b.color }}>#{i + 1}</div>
                 </div>
@@ -255,7 +258,7 @@ export default function BrandsPage() {
                     <p className="text-xs text-gray-400">İşlem yok</p>
                   </div>
                 </div>
-                <button onClick={() => toggleBrandActive(b.id, b.isActive)}
+                <button onClick={() => updateBrand(b.id, { isActive: !b.isActive })}
                   className="p-1 text-gray-400 hover:text-brand-500 transition-colors">
                   {b.isActive ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
                 </button>
