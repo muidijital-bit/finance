@@ -9,20 +9,24 @@ import { useFinanceStore, useMonthlyStats, useBudgetProgress } from '@/store/use
 import { StatCard } from '@/components/ui/Card';
 import Card from '@/components/ui/Card';
 import ProgressBar from '@/components/ui/ProgressBar';
-import { formatCurrency, formatDate, CATEGORY_LABELS, CATEGORY_ICONS, SERVICE_LABELS, SERVICE_COLORS, MONTHS_TR } from '@/lib/utils';
+import { formatCurrency, formatDate, CATEGORY_LABELS, CATEGORY_ICONS, SERVICE_LABELS, SERVICE_COLORS, MONTHS_TR, BRAND_MAP } from '@/lib/utils';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 
+type ViewMode = 'monthly' | 'yearly' | 'all';
+
 export default function DashboardPage() {
-  const { transactions, budgets, investments, goals, currency } = useFinanceStore();
+  const { transactions, budgets, investments, currency } = useFinanceStore();
 
   const now = new Date();
+  const [viewMode, setViewMode] = useState<ViewMode>('monthly');
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth()); // 0-indexed
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
 
-  const currentMonth = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+  const currentMonthKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+  const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
 
   function prevMonth() {
     if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear((y) => y - 1); }
@@ -32,41 +36,48 @@ export default function DashboardPage() {
     if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear((y) => y + 1); }
     else setSelectedMonth((m) => m + 1);
   }
-  const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
 
-  const monthlyStats = useMonthlyStats(transactions);
-  const last6 = monthlyStats.slice(-6);
+  const periodTxs = useMemo(() => {
+    if (viewMode === 'monthly') return transactions.filter((t) => t.date.startsWith(currentMonthKey));
+    if (viewMode === 'yearly') return transactions.filter((t) => t.date.startsWith(String(selectedYear)));
+    return transactions;
+  }, [transactions, viewMode, currentMonthKey, selectedYear]);
 
-  const currentStats = useMemo(() => {
-    const monthTx = transactions.filter((t) => t.date.startsWith(currentMonth));
-    const income = monthTx.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const expense = monthTx.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-    return { income, expense, net: income - expense, count: monthTx.length };
-  }, [transactions, currentMonth]);
+  const stats = useMemo(() => {
+    const income = periodTxs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const expense = periodTxs.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    return { income, expense, net: income - expense, count: periodTxs.length };
+  }, [periodTxs]);
 
   const portfolioValue = useMemo(() =>
     investments.reduce((s, i) => s + i.currentPrice * i.quantity, 0), [investments]);
 
-  const budgetProgress = useBudgetProgress(budgets, transactions, currentMonth);
+  const monthlyStats = useMonthlyStats(transactions);
+  const last6 = monthlyStats.slice(-6);
+  const budgetProgress = useBudgetProgress(budgets, transactions, currentMonthKey);
 
-  // Hizmet bazlı gelir dağılımı
+  const incomeList = useMemo(() =>
+    periodTxs.filter((t) => t.type === 'income').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8),
+    [periodTxs]);
+
+  const expenseList = useMemo(() =>
+    periodTxs.filter((t) => t.type === 'expense').sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8),
+    [periodTxs]);
+
   const serviceBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
-    transactions
-      .filter((t) => t.type === 'income' && t.date.startsWith(currentMonth) && t.service)
+    periodTxs.filter((t) => t.type === 'income' && t.service)
       .forEach((t) => { map[t.service!] = (map[t.service!] || 0) + t.amount; });
     return Object.entries(map)
       .map(([service, amount]) => ({ service, amount, label: SERVICE_LABELS[service as never], color: SERVICE_COLORS[service as never] }))
       .sort((a, b) => b.amount - a.amount);
-  }, [transactions, currentMonth]);
+  }, [periodTxs]);
 
-  // Aylık hizmet gelir karşılaştırması (bar chart)
   const monthlyServiceData = useMemo(() => {
-    const months = last6.map((m) => m.month);
-    return months.map((month) => {
-      const row: Record<string, string | number> = { month };
+    return last6.map((m) => {
+      const row: Record<string, string | number> = { month: m.month.slice(5) };
       transactions
-        .filter((t) => t.type === 'income' && t.date.startsWith(month) && t.service)
+        .filter((t) => t.type === 'income' && t.date.startsWith(m.month) && t.service)
         .forEach((t) => { row[SERVICE_LABELS[t.service as never]] = ((row[SERVICE_LABELS[t.service as never]] as number) || 0) + t.amount; });
       return row;
     });
@@ -78,57 +89,153 @@ export default function DashboardPage() {
     return Array.from(seen).slice(0, 5);
   }, [transactions]);
 
-  const recentTransactions = transactions.slice(0, 6);
+  const periodLabel = viewMode === 'monthly'
+    ? `${MONTHS_TR[selectedMonth]} ${selectedYear}`
+    : viewMode === 'yearly' ? String(selectedYear) : 'Tüm Zamanlar';
 
   return (
     <div className="space-y-6">
-      {/* Ay seçici */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <ChevronLeft size={18} className="text-gray-600 dark:text-gray-400" />
-          </button>
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white w-36 text-center">
-            {MONTHS_TR[selectedMonth]} {selectedYear}
-          </h2>
-          <button onClick={nextMonth} disabled={isCurrentMonth}
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-30">
-            <ChevronRight size={18} className="text-gray-600 dark:text-gray-400" />
-          </button>
-          {!isCurrentMonth && (
-            <button onClick={() => { setSelectedMonth(now.getMonth()); setSelectedYear(now.getFullYear()); }}
-              className="text-xs text-brand-600 dark:text-brand-400 hover:underline">
-              Bu aya dön
+      {/* ── View mode + period selector ── */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden flex-shrink-0">
+          {(['monthly', 'yearly', 'all'] as const).map((m) => (
+            <button key={m} onClick={() => setViewMode(m)}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === m ? 'bg-brand-500 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+              {m === 'monthly' ? 'Aylık' : m === 'yearly' ? 'Yıllık' : 'Tüm'}
             </button>
-          )}
+          ))}
         </div>
-        <span className="text-xs text-gray-400">{currentStats.count} işlem</span>
+
+        {viewMode === 'monthly' && (
+          <div className="flex items-center gap-2">
+            <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <ChevronLeft size={16} className="text-gray-600 dark:text-gray-400" />
+            </button>
+            <span className="text-sm font-semibold text-gray-900 dark:text-white w-32 text-center">
+              {MONTHS_TR[selectedMonth]} {selectedYear}
+            </span>
+            <button onClick={nextMonth} disabled={isCurrentMonth}
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-30">
+              <ChevronRight size={16} className="text-gray-600 dark:text-gray-400" />
+            </button>
+            {!isCurrentMonth && (
+              <button onClick={() => { setSelectedMonth(now.getMonth()); setSelectedYear(now.getFullYear()); }}
+                className="text-xs text-brand-600 dark:text-brand-400 hover:underline">
+                Bu ay
+              </button>
+            )}
+          </div>
+        )}
+
+        {viewMode === 'yearly' && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSelectedYear((y) => y - 1)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              <ChevronLeft size={16} className="text-gray-600 dark:text-gray-400" />
+            </button>
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">{selectedYear}</span>
+            <button onClick={() => setSelectedYear((y) => y + 1)} disabled={selectedYear >= now.getFullYear()}
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30">
+              <ChevronRight size={16} className="text-gray-600 dark:text-gray-400" />
+            </button>
+          </div>
+        )}
+
+        <span className="text-xs text-gray-400 ml-auto">{stats.count} işlem</span>
       </div>
 
-      {/* Stat cards */}
+      {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Gelir" value={formatCurrency(currentStats.income, currency)} sub={MONTHS_TR[selectedMonth]} color="green" icon={<TrendingUp size={18} />} />
-        <StatCard label="Gider" value={formatCurrency(currentStats.expense, currency)} sub={MONTHS_TR[selectedMonth]} color="red" icon={<TrendingDown size={18} />} />
-        <StatCard label="Net Bakiye" value={formatCurrency(currentStats.net, currency)} trend={currentStats.net} sub={currentStats.net >= 0 ? 'Pozitif' : 'Negatif'} color="blue" icon={<Wallet size={18} />} />
+        <StatCard label="Gelir" value={formatCurrency(stats.income, currency)} sub={periodLabel} color="green" icon={<TrendingUp size={18} />} />
+        <StatCard label="Gider" value={formatCurrency(stats.expense, currency)} sub={periodLabel} color="red" icon={<TrendingDown size={18} />} />
+        <StatCard label="Net" value={formatCurrency(stats.net, currency)} trend={stats.net} sub={stats.net >= 0 ? 'Pozitif' : 'Negatif'} color="blue" icon={<Wallet size={18} />} />
         <StatCard label="Portföy" value={formatCurrency(portfolioValue, 'USD')} sub="Toplam yatırım" color="purple" icon={<Target size={18} />} />
       </div>
 
-      {/* Charts row */}
+      {/* ── Income / Expense lists ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" /> Gelirler — {periodLabel}
+            </h2>
+            <Link href="/transactions" className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1">
+              Tümü <ArrowRight size={11} />
+            </Link>
+          </div>
+          <div className="space-y-1.5">
+            {incomeList.length === 0 && <p className="text-xs text-gray-400 text-center py-6">Bu dönem gelir yok</p>}
+            {incomeList.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-gray-800 last:border-0 gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{tx.description}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-xs text-gray-400">{formatDate(tx.date)}</span>
+                    {tx.brand && BRAND_MAP[tx.brand] && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                        style={{ backgroundColor: BRAND_MAP[tx.brand].color + '20', color: BRAND_MAP[tx.brand].color }}>
+                        {BRAND_MAP[tx.brand].label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span className="text-xs font-semibold font-mono text-green-600 dark:text-green-400 flex-shrink-0">
+                  +{formatCurrency(tx.amount, currency)}
+                </span>
+              </div>
+            ))}
+          </div>
+          {stats.income > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-between">
+              <span className="text-xs text-gray-500">Toplam</span>
+              <span className="text-sm font-bold font-mono text-green-600 dark:text-green-400">{formatCurrency(stats.income, currency)}</span>
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" /> Giderler — {periodLabel}
+            </h2>
+            <Link href="/transactions" className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1">
+              Tümü <ArrowRight size={11} />
+            </Link>
+          </div>
+          <div className="space-y-1.5">
+            {expenseList.length === 0 && <p className="text-xs text-gray-400 text-center py-6">Bu dönem gider yok</p>}
+            {expenseList.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-gray-800 last:border-0 gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{tx.description}</p>
+                  <p className="text-xs text-gray-400">{formatDate(tx.date)} · {CATEGORY_ICONS[tx.category]} {CATEGORY_LABELS[tx.category]}</p>
+                </div>
+                <span className="text-xs font-semibold font-mono text-red-600 dark:text-red-400 flex-shrink-0">
+                  -{formatCurrency(tx.amount, currency)}
+                </span>
+              </div>
+            ))}
+          </div>
+          {stats.expense > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-between">
+              <span className="text-xs text-gray-500">Toplam</span>
+              <span className="text-sm font-bold font-mono text-red-600 dark:text-red-400">{formatCurrency(stats.expense, currency)}</span>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* ── Charts ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Nakit Akışı (Son 6 Ay)</h2>
-          </div>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-5">Nakit Akışı (Son 6 Ay)</h2>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={last6} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
               <defs>
-                <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                <linearGradient id="ig" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} /><stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                 </linearGradient>
-                <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                <linearGradient id="eg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} /><stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
@@ -137,15 +244,14 @@ export default function DashboardPage() {
               <Tooltip contentStyle={{ background: '#1f2937', border: 'none', borderRadius: 8, fontSize: 12 }}
                 labelStyle={{ color: '#d1d5db' }} itemStyle={{ color: '#f9fafb' }}
                 formatter={(v: number) => formatCurrency(v, currency)} />
-              <Area type="monotone" dataKey="income" name="Gelir" stroke="#22c55e" fill="url(#incomeGrad)" strokeWidth={2} />
-              <Area type="monotone" dataKey="expense" name="Gider" stroke="#ef4444" fill="url(#expenseGrad)" strokeWidth={2} />
+              <Area type="monotone" dataKey="income" name="Gelir" stroke="#22c55e" fill="url(#ig)" strokeWidth={2} />
+              <Area type="monotone" dataKey="expense" name="Gider" stroke="#ef4444" fill="url(#eg)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </Card>
 
-        {/* Hizmet gelir dağılımı */}
         <Card>
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Hizmet Gelirleri</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Hizmet Gelirleri — {periodLabel}</h2>
           {serviceBreakdown.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -169,16 +275,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             </>
-          ) : (
-            <p className="text-sm text-gray-400 text-center py-12">Bu ay hizmet geliri yok</p>
-          )}
+          ) : <p className="text-sm text-gray-400 text-center py-12">Bu dönem hizmet geliri yok</p>}
         </Card>
       </div>
 
-      {/* Hizmet bazlı aylık bar chart */}
       {topServices.length > 0 && (
         <Card>
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-5">Hizmet Bazlı Aylık Gelir</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-5">Hizmet Bazlı Aylık Gelir (Son 6 Ay)</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={monthlyServiceData} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
@@ -196,60 +299,30 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Son İşlemler</h2>
-            <Link href="/transactions" className="text-xs text-brand-600 dark:text-brand-400 flex items-center gap-1 hover:underline">
-              Tümünü gör <ArrowRight size={12} />
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {recentTransactions.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
-                <div className="flex items-center gap-3">
-                  <span className="text-base">{CATEGORY_ICONS[tx.category]}</span>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{tx.description}</p>
-                    <p className="text-xs text-gray-400">
-                      {formatDate(tx.date)}{tx.service ? ` · ${SERVICE_LABELS[tx.service]}` : ''}
-                    </p>
-                  </div>
-                </div>
-                <span className={`text-sm font-semibold font-mono ${tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount, currency)}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Bütçe Durumu</h2>
+          <Link href="/budget" className="text-xs text-brand-600 dark:text-brand-400 flex items-center gap-1 hover:underline">
+            Yönet <ArrowRight size={12} />
+          </Link>
+        </div>
+        <div className="space-y-4">
+          {budgetProgress.slice(0, 5).map((b) => (
+            <div key={b.id}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  {CATEGORY_ICONS[b.category]} {CATEGORY_LABELS[b.category]}
+                </span>
+                <span className={`text-xs font-mono ${b.overBudget ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
+                  {formatCurrency(b.spent, currency)} / {formatCurrency(b.limit, currency)}
                 </span>
               </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Bütçe Durumu</h2>
-            <Link href="/budget" className="text-xs text-brand-600 dark:text-brand-400 flex items-center gap-1 hover:underline">
-              Yönet <ArrowRight size={12} />
-            </Link>
-          </div>
-          <div className="space-y-4">
-            {budgetProgress.slice(0, 5).map((b) => (
-              <div key={b.id}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    {CATEGORY_ICONS[b.category]} {CATEGORY_LABELS[b.category]}
-                  </span>
-                  <span className={`text-xs font-mono ${b.overBudget ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
-                    {formatCurrency(b.spent, currency)} / {formatCurrency(b.limit, currency)}
-                  </span>
-                </div>
-                <ProgressBar value={b.percentage} color={b.color} showLabel />
-              </div>
-            ))}
-            {budgetProgress.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Bütçe tanımlanmadı</p>}
-          </div>
-        </Card>
-      </div>
+              <ProgressBar value={b.percentage} color={b.color} showLabel />
+            </div>
+          ))}
+          {budgetProgress.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Bütçe tanımlanmadı</p>}
+        </div>
+      </Card>
     </div>
   );
 }

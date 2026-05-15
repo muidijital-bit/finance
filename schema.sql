@@ -18,9 +18,16 @@ CREATE TABLE IF NOT EXISTS payment_schedules (
   due_day INTEGER NOT NULL,
   type TEXT NOT NULL,
   category TEXT NOT NULL,
-  service TEXT,
+  payment_category TEXT,
   is_active INTEGER DEFAULT 1,
   note TEXT
+);
+
+CREATE TABLE IF NOT EXISTS brand_notes (
+  id TEXT PRIMARY KEY,
+  brand TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS budgets (

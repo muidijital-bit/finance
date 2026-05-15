@@ -1,4 +1,30 @@
-import { TransactionCategory, MuiService } from '@/types';
+import { TransactionCategory, MuiService, PaymentCategory } from '@/types';
+
+export const PAYMENT_CATEGORY_LABELS: Record<PaymentCategory, string> = {
+  kredi:           'Kredi / Taksit',
+  calisan_odemesi: 'Çalışan Ödemesi',
+  lisans:          'Lisans / Yazılım',
+  demirbas:        'Demirbaş / Ekipman',
+  aidat:           'Aidat',
+  kira:            'Kira',
+  sigorta:         'Sigorta',
+  abonelik:        'Abonelik',
+  vergi:           'Vergi / SGK',
+  diger_odeme:     'Diğer',
+};
+
+export const PAYMENT_CATEGORY_ICONS: Record<PaymentCategory, string> = {
+  kredi:           '🏦',
+  calisan_odemesi: '👤',
+  lisans:          '💻',
+  demirbas:        '🖥️',
+  aidat:           '🏢',
+  kira:            '🏠',
+  sigorta:         '🛡️',
+  abonelik:        '📡',
+  vergi:           '📋',
+  diger_odeme:     '📦',
+};
 
 export function formatCurrency(amount: number, currency = 'TRY'): string {
   return new Intl.NumberFormat('tr-TR', {

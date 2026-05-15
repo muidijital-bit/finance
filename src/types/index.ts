@@ -7,6 +7,10 @@ export type TransactionCategory =
   | 'food' | 'transport' | 'housing' | 'health' | 'education'
   | 'entertainment' | 'shopping' | 'utilities' | 'other_expense';
 
+export type PaymentCategory =
+  | 'kredi' | 'calisan_odemesi' | 'lisans' | 'demirbas'
+  | 'aidat' | 'kira' | 'sigorta' | 'abonelik' | 'vergi' | 'diger_odeme';
+
 export type MuiService =
   | 'dijital_pazarlama' | 'web_tasarim' | 'backlink' | 'promosyon'
   | 'grafik_tasarim' | 'video_produksiyon' | 'icerik_tasarim'
@@ -24,15 +28,22 @@ export interface Transaction {
   tags?: string[];
 }
 
+export interface BrandNote {
+  id: string;
+  brand: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface PaymentSchedule {
   id: string;
   title: string;
   amount: number;
   currency: string;
-  dueDay: number;       // ayın kaçında (1-31)
+  dueDay: number;
   type: 'expense' | 'income';
   category: TransactionCategory;
-  service?: MuiService;
+  paymentCategory?: PaymentCategory;
   isActive: boolean;
   note?: string;
 }
