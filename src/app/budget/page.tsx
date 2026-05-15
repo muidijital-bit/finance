@@ -9,7 +9,8 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import ProgressBar from '@/components/ui/ProgressBar';
-import { formatCurrency, CATEGORY_LABELS, CATEGORY_ICONS } from '@/lib/utils';
+import CategoryIcon from '@/components/ui/CategoryIcon';
+import { formatCurrency, CATEGORY_LABELS } from '@/lib/utils';
 import { TransactionCategory } from '@/types';
 
 const BUDGET_CATEGORIES: TransactionCategory[] = [
@@ -90,7 +91,7 @@ export default function BudgetPage() {
           <Card key={b.id} className="group">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2.5">
-                <span className="text-xl">{CATEGORY_ICONS[b.category]}</span>
+                <span className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"><CategoryIcon category={b.category} size={16} /></span>
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">{CATEGORY_LABELS[b.category]}</p>
                   <p className="text-xs text-gray-400">Aylık limit</p>
@@ -140,7 +141,7 @@ export default function BudgetPage() {
               className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               {BUDGET_CATEGORIES.filter((c) => !budgets.find((b) => b.category === c)).map((c) => (
-                <option key={c} value={c}>{CATEGORY_ICONS[c]} {CATEGORY_LABELS[c]}</option>
+                <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
               ))}
             </select>
           </div>

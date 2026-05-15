@@ -10,9 +10,10 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import {
   formatCurrency, formatDate,
-  CATEGORY_LABELS, CATEGORY_ICONS,
+  CATEGORY_LABELS,
   SERVICE_LABELS, BRANDS, BRAND_MAP, MONTHS_TR,
 } from '@/lib/utils';
+import CategoryIcon from '@/components/ui/CategoryIcon';
 import { Transaction, TransactionCategory, TransactionType, MuiService, CustomCategory } from '@/types';
 
 const INCOME_CATEGORIES: TransactionCategory[] = ['salary', 'freelance', 'investment', 'other_income'];
@@ -377,8 +378,8 @@ export default function TransactionsPage() {
           options={SERVICES.map((s) => ({ value: s, label: SERVICE_LABELS[s] }))} />
         <FilterSelect label="Kategori" value={filterCategory} onChange={setFilterCategory}
           options={[
-            ...INCOME_CATEGORIES.map((c) => ({ value: c, label: `${CATEGORY_ICONS[c]} ${CATEGORY_LABELS[c]}` })),
-            ...EXPENSE_CATEGORIES.map((c) => ({ value: c, label: `${CATEGORY_ICONS[c]} ${CATEGORY_LABELS[c]}` })),
+            ...INCOME_CATEGORIES.map((c) => ({ value: c, label: (CATEGORY_LABELS as Record<string,string>)[c] ?? c })),
+            ...EXPENSE_CATEGORIES.map((c) => ({ value: c, label: (CATEGORY_LABELS as Record<string,string>)[c] ?? c })),
           ]} />
 
         {hasFilters && (
@@ -444,7 +445,8 @@ export default function TransactionsPage() {
                     <td className="py-2.5 px-2 text-xs text-gray-500 whitespace-nowrap">{formatDate(tx.date)}</td>
                     <td className="py-2.5 px-2">
                       <span className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                        {(CATEGORY_ICONS as Record<string, string>)[tx.category] ?? '📌'} {(CATEGORY_LABELS as Record<string, string>)[tx.category] ?? tx.category}
+                        <CategoryIcon category={tx.category} size={13} className="flex-shrink-0 text-gray-400" />
+                        {(CATEGORY_LABELS as Record<string, string>)[tx.category] ?? tx.category}
                       </span>
                     </td>
                     <td className="py-2.5 px-2"><BrandBadge brand={tx.brand} /></td>
@@ -495,10 +497,10 @@ export default function TransactionsPage() {
             <select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)} className={INPUT_CLS}>
               <option value="">— Değiştirme —</option>
               <optgroup label="Gelir">
-                {INCOME_CATEGORIES.map((c) => <option key={c} value={c}>{(CATEGORY_ICONS as any)[c]} {(CATEGORY_LABELS as any)[c]}</option>)}
+                {INCOME_CATEGORIES.map((c) => <option key={c} value={c}>{(CATEGORY_LABELS as any)[c]}</option>)}
               </optgroup>
               <optgroup label="Gider">
-                {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{(CATEGORY_ICONS as any)[c]} {(CATEGORY_LABELS as any)[c]}</option>)}
+                {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{(CATEGORY_LABELS as any)[c]}</option>)}
               </optgroup>
               {customCategories.length > 0 && (
                 <optgroup label="Özel">
@@ -559,8 +561,8 @@ export default function TransactionsPage() {
             <div>
               <label className={LABEL_CLS}>Kategori</label>
               <select value={saleCategory} onChange={(e) => setSaleCategory(e.target.value as TransactionCategory)} className={INPUT_CLS}>
-                {INCOME_CATEGORIES.map((c) => <option key={c} value={c}>{(CATEGORY_ICONS as any)[c]} {(CATEGORY_LABELS as any)[c]}</option>)}
-                {customIncomeCats.map((c) => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
+                {INCOME_CATEGORIES.map((c) => <option key={c} value={c}>{(CATEGORY_LABELS as any)[c]}</option>)}
+                {customIncomeCats.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
             </div>
           </div>
@@ -666,7 +668,7 @@ export default function TransactionsPage() {
             <label className={LABEL_CLS}>Kategori</label>
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as TransactionCategory })} className={INPUT_CLS}>
               <optgroup label="Standart">
-                {cats.map((c) => <option key={c} value={c}>{CATEGORY_ICONS[c as keyof typeof CATEGORY_ICONS] ?? '📌'} {CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS] ?? c}</option>)}
+                {cats.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS] ?? c}</option>)}
               </optgroup>
               {(form.type === 'income' ? customIncomeCats : customExpenseCats).length > 0 && (
                 <optgroup label="Özel Kategoriler">

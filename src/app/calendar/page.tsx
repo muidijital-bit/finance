@@ -8,7 +8,8 @@ import { useFinanceStore } from '@/store/useFinanceStore';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import { formatCurrency, CATEGORY_LABELS, PAYMENT_CATEGORY_LABELS, PAYMENT_CATEGORY_ICONS, MONTHS_TR } from '@/lib/utils';
+import { formatCurrency, CATEGORY_LABELS, PAYMENT_CATEGORY_LABELS, MONTHS_TR } from '@/lib/utils';
+import PaymentCategoryIcon from '@/components/ui/PaymentCategoryIcon';
 import { PaymentSchedule, TransactionCategory, PaymentCategory } from '@/types';
 
 const EXPENSE_CATEGORIES: TransactionCategory[] = [
@@ -110,7 +111,7 @@ export default function CalendarPage() {
             const isPast = p.dueDay < currentDay;
             const isToday = p.dueDay === currentDay;
             const pcLabel = p.paymentCategory ? PAYMENT_CATEGORY_LABELS[p.paymentCategory] : CATEGORY_LABELS[p.category];
-            const pcIcon = p.paymentCategory ? PAYMENT_CATEGORY_ICONS[p.paymentCategory] : null;
+            const pcIcon = p.paymentCategory ? <PaymentCategoryIcon category={p.paymentCategory} size={18} /> : null;
             return (
               <div key={p.id}
                 className={`group flex items-center justify-between px-4 py-3 rounded-lg border transition-colors
@@ -199,7 +200,7 @@ export default function CalendarPage() {
                       ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300'
                       : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
                   }`}>
-                  <span>{PAYMENT_CATEGORY_ICONS[pc]}</span>
+                  <PaymentCategoryIcon category={pc} size={14} />
                   {PAYMENT_CATEGORY_LABELS[pc]}
                 </button>
               ))}

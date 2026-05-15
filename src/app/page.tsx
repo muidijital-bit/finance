@@ -9,7 +9,8 @@ import { useFinanceStore, useMonthlyStats, useBudgetProgress } from '@/store/use
 import { StatCard } from '@/components/ui/Card';
 import Card from '@/components/ui/Card';
 import ProgressBar from '@/components/ui/ProgressBar';
-import { formatCurrency, formatDate, CATEGORY_LABELS, CATEGORY_ICONS, SERVICE_LABELS, SERVICE_COLORS, MONTHS_TR, BRAND_MAP } from '@/lib/utils';
+import { formatCurrency, formatDate, CATEGORY_LABELS, SERVICE_LABELS, SERVICE_COLORS, MONTHS_TR, BRAND_MAP } from '@/lib/utils';
+import CategoryIcon from '@/components/ui/CategoryIcon';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell, Legend,
@@ -214,7 +215,7 @@ export default function DashboardPage() {
               <div key={tx.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-gray-800 last:border-0 gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{tx.description}</p>
-                  <p className="text-xs text-gray-400">{formatDate(tx.date)} · {CATEGORY_ICONS[tx.category]} {CATEGORY_LABELS[tx.category]}</p>
+                  <p className="text-xs text-gray-400 flex items-center gap-1">{formatDate(tx.date)} · <CategoryIcon category={tx.category} size={11} /> {(CATEGORY_LABELS as Record<string,string>)[tx.category] ?? tx.category}</p>
                 </div>
                 <span className="text-xs font-semibold font-mono text-red-600 dark:text-red-400 flex-shrink-0">
                   {hideAmounts ? '••••' : `-${formatCurrency(tx.amount, currency)}`}
@@ -361,7 +362,7 @@ export default function DashboardPage() {
             <div key={b.id}>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                  {CATEGORY_ICONS[b.category]} {CATEGORY_LABELS[b.category]}
+                  <CategoryIcon category={b.category} size={14} /> {(CATEGORY_LABELS as Record<string,string>)[b.category] ?? b.category}
                 </span>
                 <span className={`text-xs font-mono ${b.overBudget ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>
                   {formatCurrency(b.spent, currency)} / {formatCurrency(b.limit, currency)}
