@@ -32,7 +32,10 @@
       "Bash(npx tsc *)",
       "Bash(grep -oP \"'[^']+'$\")",
       "Bash(mkdir -p /Users/mui/projects/finance-app/src/app/brands/\\\\[brand\\\\])",
-      "Bash(mkdir -p /Users/mui/projects/finance-app/src/app/api/brands/\\\\[id\\\\] /Users/mui/projects/finance-app/src/app/api/custom-categories /Users/mui/projects/finance-app/src/app/api/employees/\\\\[id\\\\])"
+      "Bash(mkdir -p /Users/mui/projects/finance-app/src/app/api/brands/\\\\[id\\\\] /Users/mui/projects/finance-app/src/app/api/custom-categories /Users/mui/projects/finance-app/src/app/api/employees/\\\\[id\\\\])",
+      "Bash(git -C /Users/mui/projects/finance-app add src/app/brands/page.tsx)",
+      "Bash(git -C /Users/mui/projects/finance-app commit -m ' *)",
+      "Bash(wrangler d1 *)"
     ],
     "additionalDirectories": [
       "/Users/mui/Desktop",

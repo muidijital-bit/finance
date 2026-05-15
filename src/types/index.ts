@@ -119,6 +119,22 @@ export interface Goal {
   icon: string;
 }
 
+export interface Loan {
+  id: string;
+  title: string;
+  lender: string;          // banka / kurum
+  principal: number;       // ana para
+  totalAmount: number;     // toplam geri ödeme
+  installmentCount: number;
+  installmentAmount: number;
+  startDate: string;       // YYYY-MM-DD (ilk taksit ayı)
+  dueDay: number;          // ayın kaçında
+  currency: string;
+  note?: string;
+  isActive: boolean;
+  paidCount: number;       // ödenen taksit sayısı
+}
+
 // ─── Derived / computed types ──────────────────────────────────────────────────
 
 export interface MonthlyStats {

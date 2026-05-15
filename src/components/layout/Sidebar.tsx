@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ArrowLeftRight, Wallet,
-  TrendingUp, Target, BarChart3, Settings, CalendarClock, X, Briefcase, Users,
+  TrendingUp, Target, BarChart3, Settings, CalendarClock, X, Briefcase, Users, CreditCard,
 } from 'lucide-react';
 
 const navItems = [
@@ -17,6 +17,7 @@ const navItems = [
   { label: 'Yatırımlar', href: '/investments', icon: TrendingUp },
   { label: 'Hedefler', href: '/goals', icon: Target },
   { label: 'Raporlar', href: '/reports', icon: BarChart3 },
+  { label: 'Krediler', href: '/loans', icon: CreditCard },
   { label: 'Ödeme Takvimi', href: '/calendar', icon: CalendarClock },
 ];
 

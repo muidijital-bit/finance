@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Transaction, Budget, Investment, Goal, PaymentSchedule, Brand, CustomCategory, Employee } from '@/types';
+import { Transaction, Budget, Investment, Goal, PaymentSchedule, Brand, CustomCategory, Employee, Loan } from '@/types';
 
 const api = {
   get: (path: string) => fetch(path).then((r) => r.json()),
@@ -18,6 +18,7 @@ interface FinanceState {
   brands: Brand[];
   customCategories: CustomCategory[];
   employees: Employee[];
+  loans: Loan[];
   currency: string;
   darkMode: boolean;
   initialized: boolean;
@@ -57,6 +58,10 @@ interface FinanceState {
   updateEmployee: (id: string, e: Partial<Employee>) => Promise<void>;
   deleteEmployee: (id: string) => Promise<void>;
 
+  addLoan: (l: Omit<Loan, 'id'>) => Promise<void>;
+  updateLoan: (id: string, l: Partial<Loan>) => Promise<void>;
+  deleteLoan: (id: string) => Promise<void>;
+
   toggleDarkMode: () => void;
   setCurrency: (currency: string) => void;
 }
@@ -72,13 +77,14 @@ export const useFinanceStore = create<FinanceState>()(
       brands: [],
       customCategories: [],
       employees: [],
+      loans: [],
       currency: 'TRY',
       darkMode: false,
       initialized: false,
 
       init: async () => {
         if (get().initialized) return;
-        const [transactions, budgets, investments, goals, paymentSchedules, brands, customCategories, employees] = await Promise.all([
+        const [transactions, budgets, investments, goals, paymentSchedules, brands, customCategories, employees, loans] = await Promise.all([
           api.get('/api/transactions'),
           api.get('/api/budgets'),
           api.get('/api/investments'),
@@ -87,8 +93,9 @@ export const useFinanceStore = create<FinanceState>()(
           api.get('/api/brands'),
           api.get('/api/custom-categories'),
           api.get('/api/employees'),
+          api.get('/api/loans'),
         ]);
-        set({ transactions, budgets, investments, goals, paymentSchedules, brands, customCategories, employees, initialized: true });
+        set({ transactions, budgets, investments, goals, paymentSchedules, brands, customCategories, employees, loans, initialized: true });
       },
 
       addTransaction: async (t) => {
@@ -218,6 +225,21 @@ export const useFinanceStore = create<FinanceState>()(
       deleteEmployee: async (id) => {
         await api.del(`/api/employees/${id}`);
         set((s) => ({ employees: s.employees.filter((x) => x.id !== id) }));
+      },
+
+      addLoan: async (l) => {
+        const { id } = await api.post('/api/loans', l);
+        set((s) => ({ loans: [{ ...l, id }, ...s.loans] }));
+      },
+      updateLoan: async (id, l) => {
+        const current = get().loans.find((x) => x.id === id)!;
+        const updated = { ...current, ...l };
+        await api.put(`/api/loans/${id}`, updated);
+        set((s) => ({ loans: s.loans.map((x) => x.id === id ? updated : x) }));
+      },
+      deleteLoan: async (id) => {
+        await api.del(`/api/loans/${id}`);
+        set((s) => ({ loans: s.loans.filter((x) => x.id !== id) }));
       },
 
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
