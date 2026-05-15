@@ -27,7 +27,8 @@
       "Bash(npx wrangler *)",
       "Bash(pkill -f \"wrangler\")",
       "Bash(pkill -f \"next\")",
-      "Bash(npx @cloudflare/next-on-pages)"
+      "Bash(npx @cloudflare/next-on-pages)",
+      "Bash(git push *)"
     ],
     "additionalDirectories": [
       "/Users/mui/Desktop",
