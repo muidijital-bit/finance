@@ -7,14 +7,33 @@ export type TransactionCategory =
   | 'food' | 'transport' | 'housing' | 'health' | 'education'
   | 'entertainment' | 'shopping' | 'utilities' | 'other_expense';
 
+export type MuiService =
+  | 'dijital_pazarlama' | 'web_tasarim' | 'backlink' | 'promosyon'
+  | 'grafik_tasarim' | 'video_produksiyon' | 'icerik_tasarim'
+  | 'kurumsal_kimlik' | 'marka_olusturma' | 'danismanlik' | 'diger';
+
 export interface Transaction {
   id: string;
   type: TransactionType;
   category: TransactionCategory;
   amount: number;
   description: string;
-  date: string; // ISO date string
+  date: string;
+  service?: MuiService;
   tags?: string[];
+}
+
+export interface PaymentSchedule {
+  id: string;
+  title: string;
+  amount: number;
+  currency: string;
+  dueDay: number;       // ayın kaçında (1-31)
+  type: 'expense' | 'income';
+  category: TransactionCategory;
+  service?: MuiService;
+  isActive: boolean;
+  note?: string;
 }
 
 export interface Budget {

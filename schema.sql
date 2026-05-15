@@ -5,7 +5,21 @@ CREATE TABLE IF NOT EXISTS transactions (
   amount REAL NOT NULL,
   description TEXT,
   date TEXT NOT NULL,
+  service TEXT,
   created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS payment_schedules (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  amount REAL NOT NULL,
+  currency TEXT DEFAULT 'TRY',
+  due_day INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  category TEXT NOT NULL,
+  service TEXT,
+  is_active INTEGER DEFAULT 1,
+  note TEXT
 );
 
 CREATE TABLE IF NOT EXISTS budgets (

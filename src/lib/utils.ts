@@ -1,4 +1,4 @@
-import { TransactionCategory } from '@/types';
+import { TransactionCategory, MuiService } from '@/types';
 
 export function formatCurrency(amount: number, currency = 'TRY'): string {
   return new Intl.NumberFormat('tr-TR', {
@@ -67,6 +67,39 @@ export const CATEGORY_ICONS: Record<TransactionCategory, string> = {
   utilities: '💡',
   other_expense: '📦',
 };
+
+export const SERVICE_LABELS: Record<MuiService, string> = {
+  dijital_pazarlama: 'Dijital Pazarlama',
+  web_tasarim: 'Web Tasarım',
+  backlink: 'Backlink',
+  promosyon: 'Promosyon',
+  grafik_tasarim: 'Grafik Tasarım',
+  video_produksiyon: 'Video Prodüksiyon',
+  icerik_tasarim: 'İçerik Tasarım',
+  kurumsal_kimlik: 'Kurumsal Kimlik',
+  marka_olusturma: 'Marka Oluşturma',
+  danismanlik: 'Danışmanlık',
+  diger: 'Diğer',
+};
+
+export const SERVICE_COLORS: Record<MuiService, string> = {
+  dijital_pazarlama: '#5F17EC',
+  web_tasarim: '#3b82f6',
+  backlink: '#06b6d4',
+  promosyon: '#f97316',
+  grafik_tasarim: '#ec4899',
+  video_produksiyon: '#ef4444',
+  icerik_tasarim: '#8b5cf6',
+  kurumsal_kimlik: '#14b8a6',
+  marka_olusturma: '#eab308',
+  danismanlik: '#22c55e',
+  diger: '#9ca3af',
+};
+
+export const MONTHS_TR = [
+  'Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
+  'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'
+];
 
 export function generateId(): string {
   return Math.random().toString(36).slice(2, 11);

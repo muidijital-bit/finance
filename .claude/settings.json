@@ -22,10 +22,16 @@
       "Bash(git init *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git remote *)"
+      "Bash(git remote *)",
+      "Bash(mkdir -p /Users/mui/projects/finance-app/src/app/api/payment-schedules/\\\\[id\\\\] *)",
+      "Bash(npx wrangler *)",
+      "Bash(pkill -f \"wrangler\")",
+      "Bash(pkill -f \"next\")",
+      "Bash(npx @cloudflare/next-on-pages)"
     ],
     "additionalDirectories": [
-      "/Users/mui/Desktop"
+      "/Users/mui/Desktop",
+      "/Users/mui/projects/finance-app/src/app/api/payment-schedules"
     ]
   }
 }

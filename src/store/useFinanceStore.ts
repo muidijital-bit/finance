@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Transaction, Budget, Investment, Goal } from '@/types';
+import { Transaction, Budget, Investment, Goal, PaymentSchedule } from '@/types';
 
 const api = {
   get: (path: string) => fetch(path).then((r) => r.json()),
@@ -14,6 +14,7 @@ interface FinanceState {
   budgets: Budget[];
   investments: Investment[];
   goals: Goal[];
+  paymentSchedules: PaymentSchedule[];
   currency: string;
   darkMode: boolean;
   initialized: boolean;
@@ -23,6 +24,10 @@ interface FinanceState {
   addTransaction: (t: Omit<Transaction, 'id'>) => Promise<void>;
   updateTransaction: (id: string, t: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+
+  addPaymentSchedule: (p: Omit<PaymentSchedule, 'id'>) => Promise<void>;
+  updatePaymentSchedule: (id: string, p: Partial<PaymentSchedule>) => Promise<void>;
+  deletePaymentSchedule: (id: string) => Promise<void>;
 
   addBudget: (b: Omit<Budget, 'id'>) => Promise<void>;
   updateBudget: (id: string, b: Partial<Budget>) => Promise<void>;
@@ -48,19 +53,21 @@ export const useFinanceStore = create<FinanceState>()(
       budgets: [],
       investments: [],
       goals: [],
+      paymentSchedules: [],
       currency: 'TRY',
       darkMode: false,
       initialized: false,
 
       init: async () => {
         if (get().initialized) return;
-        const [transactions, budgets, investments, goals] = await Promise.all([
+        const [transactions, budgets, investments, goals, paymentSchedules] = await Promise.all([
           api.get('/api/transactions'),
           api.get('/api/budgets'),
           api.get('/api/investments'),
           api.get('/api/goals'),
+          api.get('/api/payment-schedules'),
         ]);
-        set({ transactions, budgets, investments, goals, initialized: true });
+        set({ transactions, budgets, investments, goals, paymentSchedules, initialized: true });
       },
 
       addTransaction: async (t) => {
@@ -127,6 +134,21 @@ export const useFinanceStore = create<FinanceState>()(
         const updated = { ...current, currentAmount: Math.min(current.currentAmount + amount, current.targetAmount) };
         await api.put(`/api/goals/${id}`, updated);
         set((s) => ({ goals: s.goals.map((x) => x.id === id ? updated : x) }));
+      },
+
+      addPaymentSchedule: async (p) => {
+        const { id } = await api.post('/api/payment-schedules', p);
+        set((s) => ({ paymentSchedules: [...s.paymentSchedules, { ...p, id }] }));
+      },
+      updatePaymentSchedule: async (id, p) => {
+        const current = get().paymentSchedules.find((x) => x.id === id)!;
+        const updated = { ...current, ...p };
+        await api.put(`/api/payment-schedules/${id}`, updated);
+        set((s) => ({ paymentSchedules: s.paymentSchedules.map((x) => x.id === id ? updated : x) }));
+      },
+      deletePaymentSchedule: async (id) => {
+        await api.del(`/api/payment-schedules/${id}`);
+        set((s) => ({ paymentSchedules: s.paymentSchedules.filter((x) => x.id !== id) }));
       },
 
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
