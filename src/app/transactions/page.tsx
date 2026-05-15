@@ -375,11 +375,16 @@ export default function TransactionsPage() {
         <FilterSelect label="Ay" value={filterMonth} onChange={setFilterMonth} options={availableMonths} />
         <FilterSelect label="Marka" value={filterBrand} onChange={setFilterBrand} options={brandFilterOptions} />
         <FilterSelect label="Hizmet" value={filterService} onChange={setFilterService}
-          options={SERVICES.map((s) => ({ value: s, label: SERVICE_LABELS[s] }))} />
+          options={[
+            ...SERVICES.map((s) => ({ value: s, label: SERVICE_LABELS[s] })),
+            ...customServices.map((c) => ({ value: c.key, label: c.label })),
+          ]} />
         <FilterSelect label="Kategori" value={filterCategory} onChange={setFilterCategory}
           options={[
             ...INCOME_CATEGORIES.map((c) => ({ value: c, label: (CATEGORY_LABELS as Record<string,string>)[c] ?? c })),
             ...EXPENSE_CATEGORIES.map((c) => ({ value: c, label: (CATEGORY_LABELS as Record<string,string>)[c] ?? c })),
+            ...customIncomeCats.map((c) => ({ value: c.key, label: c.label })),
+            ...customExpenseCats.map((c) => ({ value: c.key, label: c.label })),
           ]} />
 
         {hasFilters && (
@@ -452,7 +457,7 @@ export default function TransactionsPage() {
                     <td className="py-2.5 px-2"><BrandBadge brand={tx.brand} /></td>
                     <td className="py-2.5 px-2">
                       {tx.service
-                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 whitespace-nowrap">{SERVICE_LABELS[tx.service]}</span>
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 whitespace-nowrap">{SERVICE_LABELS[tx.service as MuiService] ?? customServices.find((c) => c.key === tx.service)?.label ?? tx.service}</span>
                         : <span className="text-gray-300 dark:text-gray-700">—</span>}
                     </td>
                     <td className="py-2.5 px-2 text-gray-900 dark:text-white max-w-[180px] truncate">
@@ -659,6 +664,7 @@ export default function TransactionsPage() {
               <select value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value as MuiService | '' })} className={INPUT_CLS}>
                 <option value="">— Seçiniz —</option>
                 {SERVICES.map((s) => <option key={s} value={s}>{SERVICE_LABELS[s]}</option>)}
+                {customServices.map((c) => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
               </select>
             </div>
           </div>
