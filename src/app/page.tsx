@@ -3,7 +3,7 @@
 export const runtime = 'edge';
 
 import { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Wallet, Target, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Target, ArrowRight, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useFinanceStore, useMonthlyStats, useBudgetProgress } from '@/store/useFinanceStore';
 import { StatCard } from '@/components/ui/Card';
@@ -22,6 +22,7 @@ export default function DashboardPage() {
 
   const now = new Date();
   const [viewMode, setViewMode] = useState<ViewMode>('monthly');
+  const [hideAmounts, setHideAmounts] = useState(false);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
 
@@ -140,15 +141,21 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <span className="text-xs text-gray-400 ml-auto">{stats.count} işlem</span>
+        <span className="text-xs text-gray-400">{stats.count} işlem</span>
+        <button onClick={() => setHideAmounts((v) => !v)}
+          className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0"
+          title={hideAmounts ? 'Rakamları göster' : 'Rakamları gizle'}>
+          {hideAmounts ? <EyeOff size={14} /> : <Eye size={14} />}
+          {hideAmounts ? 'Göster' : 'Gizle'}
+        </button>
       </div>
 
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Gelir" value={formatCurrency(stats.income, currency)} sub={periodLabel} color="green" icon={<TrendingUp size={18} />} />
-        <StatCard label="Gider" value={formatCurrency(stats.expense, currency)} sub={periodLabel} color="red" icon={<TrendingDown size={18} />} />
-        <StatCard label="Net" value={formatCurrency(stats.net, currency)} trend={stats.net} sub={stats.net >= 0 ? 'Pozitif' : 'Negatif'} color="blue" icon={<Wallet size={18} />} />
-        <StatCard label="Portföy" value={formatCurrency(portfolioValue, 'USD')} sub="Toplam yatırım" color="purple" icon={<Target size={18} />} />
+        <StatCard label="Gelir" value={hideAmounts ? '••••••' : formatCurrency(stats.income, currency)} sub={periodLabel} color="green" icon={<TrendingUp size={18} />} />
+        <StatCard label="Gider" value={hideAmounts ? '••••••' : formatCurrency(stats.expense, currency)} sub={periodLabel} color="red" icon={<TrendingDown size={18} />} />
+        <StatCard label="Net" value={hideAmounts ? '••••••' : formatCurrency(stats.net, currency)} trend={hideAmounts ? undefined : stats.net} sub={stats.net >= 0 ? 'Pozitif' : 'Negatif'} color="blue" icon={<Wallet size={18} />} />
+        <StatCard label="Portföy" value={hideAmounts ? '••••••' : formatCurrency(portfolioValue, 'USD')} sub="Toplam yatırım" color="purple" icon={<Target size={18} />} />
       </div>
 
       {/* ── Income / Expense lists ── */}
@@ -179,7 +186,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <span className="text-xs font-semibold font-mono text-green-600 dark:text-green-400 flex-shrink-0">
-                  +{formatCurrency(tx.amount, currency)}
+                  {hideAmounts ? '••••' : `+${formatCurrency(tx.amount, currency)}`}
                 </span>
               </div>
             ))}
@@ -187,7 +194,7 @@ export default function DashboardPage() {
           {stats.income > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-between">
               <span className="text-xs text-gray-500">Toplam</span>
-              <span className="text-sm font-bold font-mono text-green-600 dark:text-green-400">{formatCurrency(stats.income, currency)}</span>
+              <span className="text-sm font-bold font-mono text-green-600 dark:text-green-400">{hideAmounts ? '••••••' : formatCurrency(stats.income, currency)}</span>
             </div>
           )}
         </Card>
@@ -210,7 +217,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-gray-400">{formatDate(tx.date)} · {CATEGORY_ICONS[tx.category]} {CATEGORY_LABELS[tx.category]}</p>
                 </div>
                 <span className="text-xs font-semibold font-mono text-red-600 dark:text-red-400 flex-shrink-0">
-                  -{formatCurrency(tx.amount, currency)}
+                  {hideAmounts ? '••••' : `-${formatCurrency(tx.amount, currency)}`}
                 </span>
               </div>
             ))}
@@ -218,7 +225,7 @@ export default function DashboardPage() {
           {stats.expense > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-between">
               <span className="text-xs text-gray-500">Toplam</span>
-              <span className="text-sm font-bold font-mono text-red-600 dark:text-red-400">{formatCurrency(stats.expense, currency)}</span>
+              <span className="text-sm font-bold font-mono text-red-600 dark:text-red-400">{hideAmounts ? '••••••' : formatCurrency(stats.expense, currency)}</span>
             </div>
           )}
         </Card>

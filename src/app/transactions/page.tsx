@@ -3,7 +3,7 @@
 export const runtime = 'edge';
 
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, Search, ChevronDown, X, Pencil } from 'lucide-react';
+import { Plus, Trash2, Search, ChevronDown, X, Pencil, CheckSquare, Square, Layers, ShoppingCart } from 'lucide-react';
 import { useFinanceStore } from '@/store/useFinanceStore';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -141,6 +141,22 @@ export default function TransactionsPage() {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
 
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkCategory, setBulkCategory] = useState('');
+  const [bulkService, setBulkService] = useState('');
+  const [bulkBrand, setBulkBrand] = useState('');
+
+  // Toplu satış modal
+  const [saleModalOpen, setSaleModalOpen] = useState(false);
+  const [saleBrands, setSaleBrands] = useState<Set<string>>(new Set());
+  const [saleService, setSaleService] = useState('');
+  const [saleCategory, setSaleCategory] = useState<TransactionCategory>('freelance');
+  const [saleAmounts, setSaleAmounts] = useState<Record<string, string>>({});
+  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [saleDescription, setSaleDescription] = useState('');
+
   // Custom income/expense categories from DB
   const customIncomeCats = useMemo(() => customCategories.filter((c) => c.type === 'income_cat'), [customCategories]);
   const customExpenseCats = useMemo(() => customCategories.filter((c) => c.type === 'expense_cat'), [customCategories]);
@@ -235,6 +251,59 @@ export default function TransactionsPage() {
     setForm(defaultForm);
   }
 
+  // ── Bulk helpers ──────────────────────────────────────────────────────────
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectAll() {
+    setSelectedIds((prev) =>
+      prev.size === filtered.length ? new Set() : new Set(filtered.map((t) => t.id))
+    );
+  }
+  function clearSelection() { setSelectedIds(new Set()); }
+
+  async function applyBulkChanges() {
+    for (const id of selectedIds) {
+      const patch: Partial<Transaction> = {};
+      if (bulkCategory) patch.category = bulkCategory as TransactionCategory;
+      if (bulkService) patch.service = bulkService as MuiService;
+      if (bulkBrand) patch.brand = bulkBrand;
+      if (Object.keys(patch).length > 0) await updateTransaction(id, patch);
+    }
+    setBulkModalOpen(false);
+    setBulkCategory(''); setBulkService(''); setBulkBrand('');
+    clearSelection();
+  }
+
+  async function deleteBulk() {
+    for (const id of selectedIds) await deleteTransaction(id);
+    clearSelection();
+    setBulkModalOpen(false);
+  }
+
+  // Toplu satış: gelir ekle her seçili marka için
+  async function handleBulkSale() {
+    for (const brand of saleBrands) {
+      const amt = parseFloat(saleAmounts[brand] || '0');
+      if (!amt) continue;
+      await addTransaction({
+        type: 'income',
+        category: saleCategory,
+        amount: amt,
+        description: saleDescription || saleService || 'Toplu satış',
+        date: saleDate,
+        service: saleService as MuiService || undefined,
+        brand,
+      });
+    }
+    setSaleModalOpen(false);
+    setSaleBrands(new Set()); setSaleAmounts({}); setSaleDescription(''); setSaleService('');
+  }
+
   function handleSubmit() {
     if (!form.amount || !form.description) return;
     const brand = resolvedBrand(form);
@@ -319,10 +388,30 @@ export default function TransactionsPage() {
           </button>
         )}
 
-        <Button variant="primary" onClick={openAdd} className="ml-auto flex-shrink-0">
-          <Plus size={15} /> Ekle
-        </Button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Button variant="secondary" onClick={() => setSaleModalOpen(true)}>
+            <ShoppingCart size={14} /> Toplu Satış
+          </Button>
+          <Button variant="primary" onClick={openAdd}>
+            <Plus size={15} /> Ekle
+          </Button>
+        </div>
       </div>
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-brand-200 dark:border-brand-800 bg-brand-50 dark:bg-brand-900/20">
+          <span className="text-sm font-medium text-brand-700 dark:text-brand-300">{selectedIds.size} işlem seçili</span>
+          <button onClick={() => setBulkModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-500 text-white text-xs font-medium hover:bg-brand-600 transition-colors">
+            <Layers size={13} /> Toplu Değişiklik
+          </button>
+          <button onClick={clearSelection}
+            className="ml-auto flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+            <X size={12} /> İptal
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       <Card padding="sm">
@@ -330,44 +419,62 @@ export default function TransactionsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800">
+                <th className="pb-3 pl-1 pr-2 w-8">
+                  <button onClick={toggleSelectAll} className="text-gray-400 hover:text-brand-500 transition-colors">
+                    {selectedIds.size === filtered.length && filtered.length > 0
+                      ? <CheckSquare size={15} className="text-brand-500" />
+                      : <Square size={15} />}
+                  </button>
+                </th>
                 {['Tarih', 'Kategori', 'Marka', 'Hizmet', 'Açıklama', 'Tutar', ''].map((h) => (
-                  <th key={h} className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-3 px-2 first:pl-0 last:pr-0 whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-3 px-2 last:pr-0 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {filtered.map((tx) => (
-                <tr key={tx.id} className="group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                  <td className="py-3 px-2 first:pl-0 text-xs text-gray-500 whitespace-nowrap">{formatDate(tx.date)}</td>
-                  <td className="py-3 px-2">
-                    <span className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                      {CATEGORY_ICONS[tx.category]} {CATEGORY_LABELS[tx.category]}
-                    </span>
-                  </td>
-                  <td className="py-3 px-2"><BrandBadge brand={tx.brand} /></td>
-                  <td className="py-3 px-2">
-                    {tx.service
-                      ? <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 whitespace-nowrap">{SERVICE_LABELS[tx.service]}</span>
-                      : <span className="text-gray-300 dark:text-gray-700">—</span>}
-                  </td>
-                  <td className="py-3 px-2 text-gray-900 dark:text-white max-w-[180px] truncate">{tx.description}</td>
-                  <td className={`py-3 px-2 font-semibold font-mono text-sm whitespace-nowrap ${tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount, currency)}
-                  </td>
-                  <td className="py-3 pr-0 text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(tx)}
-                        className="p-1.5 rounded text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
-                        <Pencil size={13} />
+              {filtered.map((tx) => {
+                const isSel = selectedIds.has(tx.id);
+                return (
+                  <tr key={tx.id} className={`group transition-colors ${isSel ? 'bg-brand-50 dark:bg-brand-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}>
+                    <td className="py-2.5 pl-1 pr-2">
+                      <button onClick={() => toggleSelect(tx.id)} className="text-gray-300 hover:text-brand-500 transition-colors">
+                        {isSel ? <CheckSquare size={15} className="text-brand-500" /> : <Square size={15} />}
                       </button>
-                      <button onClick={() => deleteTransaction(tx.id)}
-                        className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="py-2.5 px-2 text-xs text-gray-500 whitespace-nowrap">{formatDate(tx.date)}</td>
+                    <td className="py-2.5 px-2">
+                      <span className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                        {(CATEGORY_ICONS as Record<string, string>)[tx.category] ?? '📌'} {(CATEGORY_LABELS as Record<string, string>)[tx.category] ?? tx.category}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-2"><BrandBadge brand={tx.brand} /></td>
+                    <td className="py-2.5 px-2">
+                      {tx.service
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 whitespace-nowrap">{SERVICE_LABELS[tx.service]}</span>
+                        : <span className="text-gray-300 dark:text-gray-700">—</span>}
+                    </td>
+                    <td className="py-2.5 px-2 text-gray-900 dark:text-white max-w-[180px] truncate">
+                      {tx.description}
+                      {tx.note && <span className="ml-1 text-xs text-gray-400 italic">· {tx.note}</span>}
+                    </td>
+                    <td className={`py-2.5 px-2 font-semibold font-mono text-sm whitespace-nowrap ${tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount, currency)}
+                    </td>
+                    <td className="py-2.5 pr-0 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => openEdit(tx)}
+                          className="p-1.5 rounded text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => deleteTransaction(tx.id)}
+                          className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {filtered.length === 0 && (
@@ -377,6 +484,143 @@ export default function TransactionsPage() {
           )}
         </div>
       </Card>
+
+      {/* ── Bulk Edit Modal ── */}
+      <Modal open={bulkModalOpen} onClose={() => setBulkModalOpen(false)} title={`Toplu Değişiklik — ${selectedIds.size} işlem`}>
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Boş bırakılan alanlar değiştirilmez.</p>
+
+          <div>
+            <label className={LABEL_CLS}>Kategori Değiştir</label>
+            <select value={bulkCategory} onChange={(e) => setBulkCategory(e.target.value)} className={INPUT_CLS}>
+              <option value="">— Değiştirme —</option>
+              <optgroup label="Gelir">
+                {INCOME_CATEGORIES.map((c) => <option key={c} value={c}>{(CATEGORY_ICONS as any)[c]} {(CATEGORY_LABELS as any)[c]}</option>)}
+              </optgroup>
+              <optgroup label="Gider">
+                {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{(CATEGORY_ICONS as any)[c]} {(CATEGORY_LABELS as any)[c]}</option>)}
+              </optgroup>
+              {customCategories.length > 0 && (
+                <optgroup label="Özel">
+                  {customCategories.map((c) => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
+                </optgroup>
+              )}
+            </select>
+          </div>
+
+          <div>
+            <label className={LABEL_CLS}>Hizmet Değiştir</label>
+            <select value={bulkService} onChange={(e) => setBulkService(e.target.value)} className={INPUT_CLS}>
+              <option value="">— Değiştirme —</option>
+              {SERVICES.map((s) => <option key={s} value={s}>{SERVICE_LABELS[s]}</option>)}
+              {customServices.map((c) => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className={LABEL_CLS}>Marka Değiştir</label>
+            <select value={bulkBrand} onChange={(e) => setBulkBrand(e.target.value)} className={INPUT_CLS}>
+              <option value="">— Değiştirme —</option>
+              {allBrands.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+            </select>
+          </div>
+
+          <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+            <button onClick={deleteBulk}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+              <Trash2 size={13} /> {selectedIds.size} İşlemi Sil
+            </button>
+            <Button variant="secondary" className="flex-1" onClick={() => setBulkModalOpen(false)}>İptal</Button>
+            <Button variant="primary" className="flex-1" onClick={applyBulkChanges}
+              disabled={!bulkCategory && !bulkService && !bulkBrand}>
+              <Layers size={14} /> Uygula
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Toplu Satış Modal ── */}
+      <Modal open={saleModalOpen} onClose={() => setSaleModalOpen(false)} title="Toplu Satış — Birden Fazla Marka">
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Aynı hizmeti birden fazla markaya sattıysanız her biri için gelir ekler.
+          </p>
+
+          {/* Service + Category + Date */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLS}>Hizmet</label>
+              <select value={saleService} onChange={(e) => setSaleService(e.target.value)} className={INPUT_CLS}>
+                <option value="">— Seçiniz —</option>
+                {SERVICES.map((s) => <option key={s} value={s}>{SERVICE_LABELS[s]}</option>)}
+                {customServices.map((c) => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Kategori</label>
+              <select value={saleCategory} onChange={(e) => setSaleCategory(e.target.value as TransactionCategory)} className={INPUT_CLS}>
+                {INCOME_CATEGORIES.map((c) => <option key={c} value={c}>{(CATEGORY_ICONS as any)[c]} {(CATEGORY_LABELS as any)[c]}</option>)}
+                {customIncomeCats.map((c) => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLS}>Tarih</label>
+              <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className={INPUT_CLS} />
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Açıklama</label>
+              <input type="text" placeholder="Ortak açıklama..." value={saleDescription}
+                onChange={(e) => setSaleDescription(e.target.value)} className={INPUT_CLS} />
+            </div>
+          </div>
+
+          {/* Brand + amount list */}
+          <div>
+            <label className={LABEL_CLS}>Markalar ve Tutarlar</label>
+            <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+              {brandFilterOptions.map((b) => {
+                const checked = saleBrands.has(b.value);
+                return (
+                  <div key={b.value} className={`flex items-center gap-3 px-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-0 ${checked ? 'bg-green-50 dark:bg-green-900/10' : ''}`}>
+                    <button onClick={() => setSaleBrands((prev) => { const n = new Set(prev); n.has(b.value) ? n.delete(b.value) : n.add(b.value); return n; })}>
+                      {checked ? <CheckSquare size={15} className="text-green-500" /> : <Square size={15} className="text-gray-300" />}
+                    </button>
+                    <span className="flex-1 text-sm text-gray-900 dark:text-white">{b.label}</span>
+                    {checked && (
+                      <input type="number" placeholder="Tutar" value={saleAmounts[b.value] ?? ''}
+                        onChange={(e) => setSaleAmounts((prev) => ({ ...prev, [b.value]: e.target.value }))}
+                        className="w-28 px-2 py-1 text-sm text-right border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-500" />
+                    )}
+                  </div>
+                );
+              })}
+              {brandFilterOptions.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-4">İşlemlerde marka verisi yok</p>
+              )}
+            </div>
+          </div>
+
+          {saleBrands.size > 0 && (
+            <div className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+              Toplam: <span className="font-semibold font-mono text-green-600">
+                {formatCurrency(Array.from(saleBrands).reduce((s, b) => s + (parseFloat(saleAmounts[b] || '0')), 0), currency)}
+              </span>
+              {' '}({saleBrands.size} marka)
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <Button variant="secondary" className="flex-1" onClick={() => setSaleModalOpen(false)}>İptal</Button>
+            <Button variant="primary" className="flex-1" onClick={handleBulkSale}
+              disabled={saleBrands.size === 0 || Array.from(saleBrands).every((b) => !parseFloat(saleAmounts[b] || '0'))}>
+              <ShoppingCart size={14} /> {saleBrands.size} Marka İçin Kaydet
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Add / Edit Modal */}
       <Modal open={modalOpen} onClose={closeModal} title={editingId ? 'İşlemi Düzenle' : 'Yeni İşlem Ekle'}>
