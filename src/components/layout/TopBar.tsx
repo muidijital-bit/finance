@@ -12,6 +12,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/goals': 'Hedefler',
   '/reports': 'Raporlar & Analizler',
   '/calendar': 'Ödeme Takvimi',
+  '/brands': 'Markalar',
   '/settings': 'Ayarlar',
 };
 
