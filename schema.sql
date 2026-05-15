@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   description TEXT,
   date TEXT NOT NULL,
   service TEXT,
+  brand TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
 

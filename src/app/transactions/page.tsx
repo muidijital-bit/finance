@@ -1,12 +1,16 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, Search } from 'lucide-react';
+import { Plus, Trash2, Search, ChevronDown, X } from 'lucide-react';
 import { useFinanceStore } from '@/store/useFinanceStore';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import { formatCurrency, formatDate, CATEGORY_LABELS, CATEGORY_ICONS, SERVICE_LABELS } from '@/lib/utils';
+import {
+  formatCurrency, formatDate,
+  CATEGORY_LABELS, CATEGORY_ICONS,
+  SERVICE_LABELS, BRANDS, BRAND_MAP, MONTHS_TR,
+} from '@/lib/utils';
 import { Transaction, TransactionCategory, TransactionType, MuiService } from '@/types';
 
 const INCOME_CATEGORIES: TransactionCategory[] = ['salary', 'freelance', 'investment', 'other_income'];
@@ -25,26 +29,95 @@ const defaultForm = {
   description: '',
   date: new Date().toISOString().split('T')[0],
   service: '' as MuiService | '',
+  brand: '',
 };
+
+// ─── Filter pill component ─────────────────────────────────────────────────────
+function FilterSelect({
+  label, value, onChange, options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  const active = value !== '';
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`appearance-none pl-3 pr-7 py-2 text-xs rounded-lg border font-medium cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+          active
+            ? 'bg-brand-500 text-white border-brand-500'
+            : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-gray-300'
+        }`}
+      >
+        <option value="">{label}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <ChevronDown size={12} className={`absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${active ? 'text-white' : 'text-gray-400'}`} />
+    </div>
+  );
+}
 
 export default function TransactionsPage() {
   const { transactions, addTransaction, deleteTransaction, currency } = useFinanceStore();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(defaultForm);
+
+  // Filters
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
+  const [filterService, setFilterService] = useState('');
+  const [filterBrand, setFilterBrand] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+
+  // Derive available months from data
+  const availableMonths = useMemo(() => {
+    const set = new Set<string>();
+    transactions.forEach((t) => set.add(t.date.slice(0, 7)));
+    return Array.from(set).sort().reverse().map((m) => {
+      const [y, mo] = m.split('-');
+      return { value: m, label: `${MONTHS_TR[parseInt(mo) - 1]} ${y}` };
+    });
+  }, [transactions]);
+
+  const hasFilters = search || filterType !== 'all' || filterService || filterBrand || filterCategory || filterMonth;
+
+  function clearFilters() {
+    setSearch('');
+    setFilterType('all');
+    setFilterService('');
+    setFilterBrand('');
+    setFilterCategory('');
+    setFilterMonth('');
+  }
 
   const filtered = useMemo(() =>
     transactions
       .filter((t) => {
-        const matchType = filterType === 'all' || t.type === filterType;
-        const matchSearch = t.description.toLowerCase().includes(search.toLowerCase()) ||
-          CATEGORY_LABELS[t.category].toLowerCase().includes(search.toLowerCase()) ||
-          (t.service ? SERVICE_LABELS[t.service].toLowerCase().includes(search.toLowerCase()) : false);
-        return matchType && matchSearch;
+        if (filterType !== 'all' && t.type !== filterType) return false;
+        if (filterService && t.service !== filterService) return false;
+        if (filterBrand && t.brand !== filterBrand) return false;
+        if (filterCategory && t.category !== filterCategory) return false;
+        if (filterMonth && !t.date.startsWith(filterMonth)) return false;
+        if (search) {
+          const q = search.toLowerCase();
+          const inDesc = t.description.toLowerCase().includes(q);
+          const inCat = CATEGORY_LABELS[t.category].toLowerCase().includes(q);
+          const inSvc = t.service ? SERVICE_LABELS[t.service].toLowerCase().includes(q) : false;
+          const inBrand = t.brand ? (BRAND_MAP[t.brand]?.label ?? t.brand).toLowerCase().includes(q) : false;
+          if (!inDesc && !inCat && !inSvc && !inBrand) return false;
+        }
+        return true;
       })
       .sort((a, b) => b.date.localeCompare(a.date)),
-    [transactions, filterType, search]
+    [transactions, filterType, filterService, filterBrand, filterCategory, filterMonth, search]
   );
 
   const totalIncome = filtered.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
@@ -59,6 +132,7 @@ export default function TransactionsPage() {
       description: form.description,
       date: form.date,
       service: form.service || undefined,
+      brand: form.brand || undefined,
     });
     setForm(defaultForm);
     setModalOpen(false);
@@ -68,66 +142,135 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-4">
+      {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Toplam Gelir', value: totalIncome, color: 'text-green-600 dark:text-green-400' },
           { label: 'Toplam Gider', value: totalExpense, color: 'text-red-600 dark:text-red-400' },
-          { label: 'Net', value: totalIncome - totalExpense, color: totalIncome - totalExpense >= 0 ? 'text-blue-600' : 'text-red-600' },
+          { label: 'Net', value: totalIncome - totalExpense, color: totalIncome - totalExpense >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400' },
         ].map(({ label, value, color }) => (
           <Card key={label}>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{label} <span className="text-gray-400">({filtered.length} işlem)</span></p>
             <p className={`text-lg font-semibold font-mono mt-1 ${color}`}>{formatCurrency(value, currency)}</p>
           </Card>
         ))}
       </div>
 
+      {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2">
+        {/* Search */}
         <div className="relative flex-1 min-w-0" style={{ minWidth: '160px' }}>
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input type="text" placeholder="İşlem ara..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          <input
+            type="text"
+            placeholder="Ara..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
         </div>
+
+        {/* Type toggle */}
         <div className="flex rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden flex-shrink-0">
           {(['all', 'income', 'expense'] as const).map((t) => (
             <button key={t} onClick={() => setFilterType(t)}
-              className={`px-3 py-2 text-xs font-medium transition-colors ${filterType === t ? 'bg-brand-500 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+              className={`px-3 py-2 text-xs font-medium transition-colors ${
+                filterType === t
+                  ? t === 'income' ? 'bg-green-500 text-white' : t === 'expense' ? 'bg-red-500 text-white' : 'bg-brand-500 text-white'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}>
               {t === 'all' ? 'Tümü' : t === 'income' ? 'Gelir' : 'Gider'}
             </button>
           ))}
         </div>
-        <Button variant="primary" onClick={() => setModalOpen(true)}>
+
+        {/* Dropdown filters */}
+        <FilterSelect
+          label="Ay"
+          value={filterMonth}
+          onChange={setFilterMonth}
+          options={availableMonths}
+        />
+        <FilterSelect
+          label="Marka"
+          value={filterBrand}
+          onChange={setFilterBrand}
+          options={BRANDS.map((b) => ({ value: b.value, label: b.label }))}
+        />
+        <FilterSelect
+          label="Hizmet"
+          value={filterService}
+          onChange={setFilterService}
+          options={SERVICES.map((s) => ({ value: s, label: SERVICE_LABELS[s] }))}
+        />
+        <FilterSelect
+          label="Kategori"
+          value={filterCategory}
+          onChange={setFilterCategory}
+          options={[
+            ...INCOME_CATEGORIES.map((c) => ({ value: c, label: `${CATEGORY_ICONS[c]} ${CATEGORY_LABELS[c]}` })),
+            ...EXPENSE_CATEGORIES.map((c) => ({ value: c, label: `${CATEGORY_ICONS[c]} ${CATEGORY_LABELS[c]}` })),
+          ]}
+        />
+
+        {hasFilters && (
+          <button onClick={clearFilters}
+            className="flex items-center gap-1 px-3 py-2 text-xs rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+            <X size={12} /> Temizle
+          </button>
+        )}
+
+        <Button variant="primary" onClick={() => setModalOpen(true)} className="ml-auto flex-shrink-0">
           <Plus size={15} /> Ekle
         </Button>
       </div>
 
+      {/* Table */}
       <Card padding="sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800">
-                {['Kategori', 'Hizmet', 'Açıklama', 'Tarih', 'Tutar', ''].map((h) => (
-                  <th key={h} className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-3 px-3 first:pl-0 last:pr-0">{h}</th>
+                {['Tarih', 'Kategori', 'Marka', 'Hizmet', 'Açıklama', 'Tutar', ''].map((h) => (
+                  <th key={h} className="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-3 px-2 first:pl-0 last:pr-0 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {filtered.map((tx) => (
                 <tr key={tx.id} className="group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                  <td className="py-3 px-3 first:pl-0">
-                    <span className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <td className="py-3 px-2 first:pl-0 text-xs text-gray-500 whitespace-nowrap">{formatDate(tx.date)}</td>
+                  <td className="py-3 px-2">
+                    <span className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       {CATEGORY_ICONS[tx.category]} {CATEGORY_LABELS[tx.category]}
                     </span>
                   </td>
-                  <td className="py-3 px-3">
+                  <td className="py-3 px-2">
+                    {tx.brand && BRAND_MAP[tx.brand] ? (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
+                        style={{
+                          backgroundColor: BRAND_MAP[tx.brand].color + '20',
+                          color: BRAND_MAP[tx.brand].color,
+                        }}
+                      >
+                        {BRAND_MAP[tx.brand].label}
+                      </span>
+                    ) : tx.brand ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                        {tx.brand}
+                      </span>
+                    ) : <span className="text-gray-300 dark:text-gray-700">—</span>}
+                  </td>
+                  <td className="py-3 px-2">
                     {tx.service ? (
-                      <span className="text-xs px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 whitespace-nowrap">
                         {SERVICE_LABELS[tx.service]}
                       </span>
-                    ) : <span className="text-gray-300">—</span>}
+                    ) : <span className="text-gray-300 dark:text-gray-700">—</span>}
                   </td>
-                  <td className="py-3 px-3 text-gray-900 dark:text-white">{tx.description}</td>
-                  <td className="py-3 px-3 text-gray-500 text-xs">{formatDate(tx.date)}</td>
-                  <td className={`py-3 px-3 font-semibold font-mono ${tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  <td className="py-3 px-2 text-gray-900 dark:text-white max-w-[180px] truncate">{tx.description}</td>
+                  <td className={`py-3 px-2 font-semibold font-mono text-sm whitespace-nowrap ${tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount, currency)}
                   </td>
                   <td className="py-3 pr-0 text-right">
@@ -140,28 +283,47 @@ export default function TransactionsPage() {
               ))}
             </tbody>
           </table>
-          {filtered.length === 0 && <p className="text-center text-sm text-gray-400 py-12">İşlem bulunamadı</p>}
+          {filtered.length === 0 && (
+            <p className="text-center text-sm text-gray-400 py-12">
+              {hasFilters ? 'Filtreyle eşleşen işlem bulunamadı' : 'Henüz işlem yok'}
+            </p>
+          )}
         </div>
       </Card>
 
+      {/* Add Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Yeni İşlem Ekle">
         <div className="space-y-4">
+          {/* Type */}
           <div className="flex rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
             {(['income', 'expense'] as const).map((t) => (
               <button key={t}
                 onClick={() => setForm({ ...form, type: t, category: t === 'income' ? 'freelance' : 'food' })}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${form.type === t ? (t === 'income' ? 'bg-green-500 text-white' : 'bg-red-500 text-white') : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-                {t === 'income' ? 'Gelir' : 'Gider'}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                  form.type === t
+                    ? t === 'income' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}>
+                {t === 'income' ? '+ Gelir' : '- Gider'}
               </button>
             ))}
           </div>
 
-          <div>
-            <label className={LABEL_CLS}>Hizmet</label>
-            <select value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value as MuiService | '' })} className={INPUT_CLS}>
-              <option value="">— Seçiniz —</option>
-              {SERVICES.map((s) => <option key={s} value={s}>{SERVICE_LABELS[s]}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL_CLS}>Marka / Müşteri</label>
+              <select value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} className={INPUT_CLS}>
+                <option value="">— Seçiniz —</option>
+                {BRANDS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Hizmet</label>
+              <select value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value as MuiService | '' })} className={INPUT_CLS}>
+                <option value="">— Seçiniz —</option>
+                {SERVICES.map((s) => <option key={s} value={s}>{SERVICE_LABELS[s]}</option>)}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -186,7 +348,7 @@ export default function TransactionsPage() {
 
           <div>
             <label className={LABEL_CLS}>Açıklama</label>
-            <input type="text" placeholder="Müşteri adı veya açıklama" value={form.description}
+            <input type="text" placeholder="Müşteri adı veya not" value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })} className={INPUT_CLS} />
           </div>
 

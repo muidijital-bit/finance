@@ -9,8 +9,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const body = await req.json();
   await db.prepare(
-    'UPDATE transactions SET type=?, category=?, amount=?, description=?, date=? WHERE id=?'
-  ).bind(body.type, body.category, body.amount, body.description, body.date, id).run();
+    'UPDATE transactions SET type=?, category=?, amount=?, description=?, date=?, service=?, brand=? WHERE id=?'
+  ).bind(body.type, body.category, body.amount, body.description, body.date,
+    body.service || null, body.brand || null, id).run();
   return NextResponse.json({ ok: true });
 }
 

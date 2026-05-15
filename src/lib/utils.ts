@@ -96,6 +96,17 @@ export const SERVICE_COLORS: Record<MuiService, string> = {
   diger: '#9ca3af',
 };
 
+// Predefined brands/clients — yeni marka eklemek için buraya eklenir
+export const BRANDS: { value: string; label: string; color: string }[] = [
+  { value: 'durmaz_invest', label: 'Durmaz Invest', color: '#0ea5e9' },
+  { value: 'muimedya',      label: 'muimedya',       color: '#5F17EC' },
+  { value: 'diger',         label: 'Diğer',           color: '#9ca3af' },
+];
+
+export const BRAND_MAP: Record<string, { label: string; color: string }> = Object.fromEntries(
+  BRANDS.map((b) => [b.value, { label: b.label, color: b.color }])
+);
+
 export const MONTHS_TR = [
   'Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
   'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'

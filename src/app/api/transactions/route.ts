@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const id = generateId();
   await db.prepare(
-    'INSERT INTO transactions (id, type, category, amount, description, date) VALUES (?, ?, ?, ?, ?, ?)'
-  ).bind(id, body.type, body.category, body.amount, body.description, body.date).run();
+    'INSERT INTO transactions (id, type, category, amount, description, date, service, brand) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, body.type, body.category, body.amount, body.description, body.date,
+    body.service || null, body.brand || null).run();
   return NextResponse.json({ id });
 }

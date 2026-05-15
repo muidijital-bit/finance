@@ -20,6 +20,7 @@ export interface Transaction {
   description: string;
   date: string;
   service?: MuiService;
+  brand?: string;
   tags?: string[];
 }
 
