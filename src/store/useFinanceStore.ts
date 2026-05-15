@@ -24,6 +24,7 @@ interface FinanceState {
   addTransaction: (t: Omit<Transaction, 'id'>) => Promise<void>;
   updateTransaction: (id: string, t: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  rebrandTransactions: (from: string[], to: string) => Promise<void>;
 
   addPaymentSchedule: (p: Omit<PaymentSchedule, 'id'>) => Promise<void>;
   updatePaymentSchedule: (id: string, p: Partial<PaymentSchedule>) => Promise<void>;
@@ -83,6 +84,14 @@ export const useFinanceStore = create<FinanceState>()(
       deleteTransaction: async (id) => {
         await api.del(`/api/transactions/${id}`);
         set((s) => ({ transactions: s.transactions.filter((x) => x.id !== id) }));
+      },
+      rebrandTransactions: async (from, to) => {
+        await api.post('/api/transactions/rebrand', { from, to });
+        set((s) => ({
+          transactions: s.transactions.map((x) =>
+            x.brand && from.includes(x.brand) ? { ...x, brand: to } : x
+          ),
+        }));
       },
 
       addBudget: async (b) => {
