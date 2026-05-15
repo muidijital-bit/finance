@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Transaction, Budget, Investment, Goal, PaymentSchedule } from '@/types';
+import { Transaction, Budget, Investment, Goal, PaymentSchedule, Brand, CustomCategory, Employee } from '@/types';
 
 const api = {
   get: (path: string) => fetch(path).then((r) => r.json()),
@@ -15,6 +15,9 @@ interface FinanceState {
   investments: Investment[];
   goals: Goal[];
   paymentSchedules: PaymentSchedule[];
+  brands: Brand[];
+  customCategories: CustomCategory[];
+  employees: Employee[];
   currency: string;
   darkMode: boolean;
   initialized: boolean;
@@ -43,6 +46,17 @@ interface FinanceState {
   deleteGoal: (id: string) => Promise<void>;
   contributeToGoal: (id: string, amount: number) => Promise<void>;
 
+  addBrand: (b: Omit<Brand, 'id'>) => Promise<string>;
+  updateBrand: (id: string, b: Partial<Brand>) => Promise<void>;
+  deleteBrand: (id: string) => Promise<void>;
+
+  addCustomCategory: (c: Omit<CustomCategory, 'id' | 'key'>) => Promise<void>;
+  deleteCustomCategory: (id: string) => Promise<void>;
+
+  addEmployee: (e: Omit<Employee, 'id'>) => Promise<void>;
+  updateEmployee: (id: string, e: Partial<Employee>) => Promise<void>;
+  deleteEmployee: (id: string) => Promise<void>;
+
   toggleDarkMode: () => void;
   setCurrency: (currency: string) => void;
 }
@@ -55,20 +69,26 @@ export const useFinanceStore = create<FinanceState>()(
       investments: [],
       goals: [],
       paymentSchedules: [],
+      brands: [],
+      customCategories: [],
+      employees: [],
       currency: 'TRY',
       darkMode: false,
       initialized: false,
 
       init: async () => {
         if (get().initialized) return;
-        const [transactions, budgets, investments, goals, paymentSchedules] = await Promise.all([
+        const [transactions, budgets, investments, goals, paymentSchedules, brands, customCategories, employees] = await Promise.all([
           api.get('/api/transactions'),
           api.get('/api/budgets'),
           api.get('/api/investments'),
           api.get('/api/goals'),
           api.get('/api/payment-schedules'),
+          api.get('/api/brands'),
+          api.get('/api/custom-categories'),
+          api.get('/api/employees'),
         ]);
-        set({ transactions, budgets, investments, goals, paymentSchedules, initialized: true });
+        set({ transactions, budgets, investments, goals, paymentSchedules, brands, customCategories, employees, initialized: true });
       },
 
       addTransaction: async (t) => {
@@ -158,6 +178,46 @@ export const useFinanceStore = create<FinanceState>()(
       deletePaymentSchedule: async (id) => {
         await api.del(`/api/payment-schedules/${id}`);
         set((s) => ({ paymentSchedules: s.paymentSchedules.filter((x) => x.id !== id) }));
+      },
+
+      addBrand: async (b) => {
+        const { id, value } = await api.post('/api/brands', b);
+        set((s) => ({ brands: [...s.brands, { ...b, id, value }] }));
+        return value;
+      },
+      updateBrand: async (id, b) => {
+        const current = get().brands.find((x) => x.id === id)!;
+        const updated = { ...current, ...b };
+        await api.put(`/api/brands/${id}`, updated);
+        set((s) => ({ brands: s.brands.map((x) => x.id === id ? updated : x) }));
+      },
+      deleteBrand: async (id) => {
+        await api.del(`/api/brands/${id}`);
+        set((s) => ({ brands: s.brands.filter((x) => x.id !== id) }));
+      },
+
+      addCustomCategory: async (c) => {
+        const { id, key } = await api.post('/api/custom-categories', c);
+        set((s) => ({ customCategories: [...s.customCategories, { ...c, id, key }] }));
+      },
+      deleteCustomCategory: async (id) => {
+        await fetch(`/api/custom-categories?id=${id}`, { method: 'DELETE' });
+        set((s) => ({ customCategories: s.customCategories.filter((x) => x.id !== id) }));
+      },
+
+      addEmployee: async (e) => {
+        const { id } = await api.post('/api/employees', e);
+        set((s) => ({ employees: [...s.employees, { ...e, id }] }));
+      },
+      updateEmployee: async (id, e) => {
+        const current = get().employees.find((x) => x.id === id)!;
+        const updated = { ...current, ...e };
+        await api.put(`/api/employees/${id}`, updated);
+        set((s) => ({ employees: s.employees.map((x) => x.id === id ? updated : x) }));
+      },
+      deleteEmployee: async (id) => {
+        await api.del(`/api/employees/${id}`);
+        set((s) => ({ employees: s.employees.filter((x) => x.id !== id) }));
       },
 
       toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),

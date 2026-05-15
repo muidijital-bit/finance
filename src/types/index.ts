@@ -28,10 +28,43 @@ export interface Transaction {
   amount: number;
   description: string;
   note?: string;
+  remainingBalance?: number;
   date: string;
   service?: MuiService;
   brand?: string;
   tags?: string[];
+}
+
+export interface Brand {
+  id: string;
+  value: string;
+  label: string;
+  color: string;
+  isActive: boolean;
+  note?: string;
+}
+
+export interface CustomCategory {
+  id: string;
+  type: 'income_cat' | 'expense_cat' | 'service';
+  key: string;
+  label: string;
+  icon: string;
+  color: string;
+}
+
+export interface Employee {
+  id: string;
+  name: string;
+  position?: string;
+  salary: number;
+  salaryCurrency: string;
+  startDate?: string;
+  tcNo?: string;
+  phone?: string;
+  email?: string;
+  isActive: boolean;
+  note?: string;
 }
 
 export interface BrandNote {

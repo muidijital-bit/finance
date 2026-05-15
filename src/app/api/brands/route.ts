@@ -6,10 +6,11 @@ export const runtime = 'edge';
 export async function GET() {
   const db = getDB();
   if (!db) return NextResponse.json([]);
-  const { results } = await db.prepare('SELECT * FROM transactions ORDER BY date DESC').all();
+  const { results } = await db.prepare('SELECT * FROM brands ORDER BY label ASC').all();
   return NextResponse.json(results.map((r: any) => ({
     ...r,
-    remainingBalance: r.remaining_balance ?? undefined,
+    isActive: r.is_active === 1,
+    note: r.note ?? undefined,
   })));
 }
 
@@ -18,9 +19,9 @@ export async function POST(req: NextRequest) {
   if (!db) return NextResponse.json({ error: 'DB yok' }, { status: 500 });
   const body = await req.json();
   const id = generateId();
+  const value = body.value || body.label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
   await db.prepare(
-    'INSERT INTO transactions (id, type, category, amount, description, note, remaining_balance, date, service, brand) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).bind(id, body.type, body.category, body.amount, body.description, body.note || null,
-    body.remainingBalance ?? null, body.date, body.service || null, body.brand || null).run();
-  return NextResponse.json({ id });
+    'INSERT OR REPLACE INTO brands (id, value, label, color, is_active, note) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(id, value, body.label, body.color ?? '#9ca3af', 1, body.note ?? null).run();
+  return NextResponse.json({ id, value });
 }

@@ -9,9 +9,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const body = await req.json();
   await db.prepare(
-    'UPDATE transactions SET type=?, category=?, amount=?, description=?, note=?, remaining_balance=?, date=?, service=?, brand=? WHERE id=?'
-  ).bind(body.type, body.category, body.amount, body.description, body.note || null,
-    body.remainingBalance ?? null, body.date, body.service || null, body.brand || null, id).run();
+    'UPDATE brands SET label=?, color=?, is_active=?, note=? WHERE id=?'
+  ).bind(body.label, body.color, body.isActive ? 1 : 0, body.note ?? null, id).run();
   return NextResponse.json({ ok: true });
 }
 
@@ -19,6 +18,6 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   const db = getDB();
   if (!db) return NextResponse.json({ error: 'DB yok' }, { status: 500 });
   const { id } = await params;
-  await db.prepare('DELETE FROM transactions WHERE id=?').bind(id).run();
+  await db.prepare('DELETE FROM brands WHERE id=?').bind(id).run();
   return NextResponse.json({ ok: true });
 }

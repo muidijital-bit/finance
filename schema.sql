@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   amount REAL NOT NULL,
   description TEXT,
   note TEXT,
+  remaining_balance REAL,
   date TEXT NOT NULL,
   service TEXT,
   brand TEXT,
@@ -51,6 +52,40 @@ CREATE TABLE IF NOT EXISTS investments (
   maturity_date TEXT,
   currency TEXT DEFAULT 'TRY',
   date TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS brands (
+  id TEXT PRIMARY KEY,
+  value TEXT UNIQUE NOT NULL,
+  label TEXT NOT NULL,
+  color TEXT DEFAULT '#9ca3af',
+  is_active INTEGER DEFAULT 1,
+  note TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS custom_categories (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  key TEXT NOT NULL,
+  label TEXT NOT NULL,
+  icon TEXT DEFAULT '📌',
+  color TEXT DEFAULT '#9ca3af'
+);
+
+CREATE TABLE IF NOT EXISTS employees (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  position TEXT,
+  salary REAL DEFAULT 0,
+  salary_currency TEXT DEFAULT 'TRY',
+  start_date TEXT,
+  tc_no TEXT,
+  phone TEXT,
+  email TEXT,
+  is_active INTEGER DEFAULT 1,
+  note TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS goals (

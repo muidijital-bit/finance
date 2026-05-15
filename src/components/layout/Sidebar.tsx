@@ -5,13 +5,14 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ArrowLeftRight, Wallet,
-  TrendingUp, Target, BarChart3, Settings, CalendarClock, X, Briefcase,
+  TrendingUp, Target, BarChart3, Settings, CalendarClock, X, Briefcase, Users,
 } from 'lucide-react';
 
 const navItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
   { label: 'İşlemler', href: '/transactions', icon: ArrowLeftRight },
   { label: 'Markalar', href: '/brands', icon: Briefcase },
+  { label: 'Çalışanlar', href: '/employees', icon: Users },
   { label: 'Bütçe', href: '/budget', icon: Wallet },
   { label: 'Yatırımlar', href: '/investments', icon: TrendingUp },
   { label: 'Hedefler', href: '/goals', icon: Target },

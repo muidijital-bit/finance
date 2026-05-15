@@ -31,12 +31,14 @@
       "Bash(git push *)",
       "Bash(npx tsc *)",
       "Bash(grep -oP \"'[^']+'$\")",
-      "Bash(mkdir -p /Users/mui/projects/finance-app/src/app/brands/\\\\[brand\\\\])"
+      "Bash(mkdir -p /Users/mui/projects/finance-app/src/app/brands/\\\\[brand\\\\])",
+      "Bash(mkdir -p /Users/mui/projects/finance-app/src/app/api/brands/\\\\[id\\\\] /Users/mui/projects/finance-app/src/app/api/custom-categories /Users/mui/projects/finance-app/src/app/api/employees/\\\\[id\\\\])"
     ],
     "additionalDirectories": [
       "/Users/mui/Desktop",
       "/Users/mui/projects/finance-app/src/app/api/payment-schedules",
-      "/Users/mui/projects/finance-app/src/app/brands"
+      "/Users/mui/projects/finance-app/src/app/brands",
+      "/Users/mui/projects/finance-app/src/app/api/brands"
     ]
   }
 }

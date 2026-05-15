@@ -13,7 +13,7 @@ import {
   CATEGORY_LABELS, CATEGORY_ICONS,
   SERVICE_LABELS, BRANDS, BRAND_MAP, MONTHS_TR,
 } from '@/lib/utils';
-import { Transaction, TransactionCategory, TransactionType, MuiService } from '@/types';
+import { Transaction, TransactionCategory, TransactionType, MuiService, CustomCategory } from '@/types';
 
 const INCOME_CATEGORIES: TransactionCategory[] = ['salary', 'freelance', 'investment', 'other_income'];
 const EXPENSE_CATEGORIES: TransactionCategory[] = [
@@ -31,6 +31,7 @@ type FormState = {
   amount: string;
   description: string;
   note: string;
+  remainingBalance: string;
   date: string;
   service: MuiService | '';
   brand: string;
@@ -43,6 +44,7 @@ const defaultForm: FormState = {
   amount: '',
   description: '',
   note: '',
+  remainingBalance: '',
   date: new Date().toISOString().split('T')[0],
   service: '',
   brand: '',
@@ -125,7 +127,7 @@ function resolvedBrand(form: FormState): string | undefined {
 }
 
 export default function TransactionsPage() {
-  const { transactions, addTransaction, updateTransaction, deleteTransaction, currency } = useFinanceStore();
+  const { transactions, addTransaction, updateTransaction, deleteTransaction, currency, customCategories, brands: dbBrands } = useFinanceStore();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -139,14 +141,20 @@ export default function TransactionsPage() {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
 
-  // Dynamic brands: static list + any brand found in transaction data
+  // Custom income/expense categories from DB
+  const customIncomeCats = useMemo(() => customCategories.filter((c) => c.type === 'income_cat'), [customCategories]);
+  const customExpenseCats = useMemo(() => customCategories.filter((c) => c.type === 'expense_cat'), [customCategories]);
+  const customServices = useMemo(() => customCategories.filter((c) => c.type === 'service'), [customCategories]);
+
+  // Dynamic brands: DB brands + static list + any brand found in transaction data
   const allBrands = useMemo(() => {
     const map = new Map(BRANDS.map((b) => [b.value, b.label]));
+    dbBrands.forEach((b) => map.set(b.value, b.label));
     transactions.forEach((t) => {
       if (t.brand && !map.has(t.brand)) map.set(t.brand, t.brand);
     });
     return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
-  }, [transactions]);
+  }, [transactions, dbBrands]);
 
   // Dynamic brand filter options: only brands that exist in current data
   const brandFilterOptions = useMemo(() => {
@@ -212,6 +220,7 @@ export default function TransactionsPage() {
       amount: String(tx.amount),
       description: tx.description,
       note: tx.note ?? '',
+      remainingBalance: tx.remainingBalance != null ? String(tx.remainingBalance) : '',
       date: tx.date,
       service: tx.service ?? '',
       brand: tx.brand ?? '',
@@ -235,6 +244,7 @@ export default function TransactionsPage() {
       amount: parseFloat(form.amount),
       description: form.description,
       note: form.note || undefined,
+      remainingBalance: form.remainingBalance ? parseFloat(form.remainingBalance) : undefined,
       date: form.date,
       service: form.service || undefined,
       brand,
@@ -247,7 +257,8 @@ export default function TransactionsPage() {
     closeModal();
   }
 
-  const cats = form.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const baseCats = form.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const cats = baseCats; // custom cats shown separately in select
 
   return (
     <div className="space-y-4">
@@ -410,7 +421,16 @@ export default function TransactionsPage() {
           <div>
             <label className={LABEL_CLS}>Kategori</label>
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as TransactionCategory })} className={INPUT_CLS}>
-              {cats.map((c) => <option key={c} value={c}>{CATEGORY_ICONS[c]} {CATEGORY_LABELS[c]}</option>)}
+              <optgroup label="Standart">
+                {cats.map((c) => <option key={c} value={c}>{CATEGORY_ICONS[c as keyof typeof CATEGORY_ICONS] ?? '📌'} {CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS] ?? c}</option>)}
+              </optgroup>
+              {(form.type === 'income' ? customIncomeCats : customExpenseCats).length > 0 && (
+                <optgroup label="Özel Kategoriler">
+                  {(form.type === 'income' ? customIncomeCats : customExpenseCats).map((c) => (
+                    <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
 
@@ -427,6 +447,15 @@ export default function TransactionsPage() {
                 onChange={(e) => setForm({ ...form, date: e.target.value })} className={INPUT_CLS} />
             </div>
           </div>
+
+          {/* Remaining balance — only for income */}
+          {form.type === 'income' && (
+            <div>
+              <label className={LABEL_CLS}>Kalan Bakiye (opsiyonel)</label>
+              <input type="number" placeholder="Ön ödeme ise tahsil edilmemiş tutar..." value={form.remainingBalance}
+                onChange={(e) => setForm({ ...form, remainingBalance: e.target.value })} className={INPUT_CLS} />
+            </div>
+          )}
 
           {/* Description */}
           <div>
