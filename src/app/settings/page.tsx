@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import { useFinanceStore } from '@/store/useFinanceStore';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';

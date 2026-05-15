@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import { useState, useMemo } from 'react';
 import { Plus, Trash2, TrendingUp, TrendingDown, Pencil } from 'lucide-react';
 import { useFinanceStore } from '@/store/useFinanceStore';

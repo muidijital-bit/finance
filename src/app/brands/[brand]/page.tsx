@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import { useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFinanceStore } from '@/store/useFinanceStore';

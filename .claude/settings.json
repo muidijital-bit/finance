@@ -28,11 +28,15 @@
       "Bash(pkill -f \"wrangler\")",
       "Bash(pkill -f \"next\")",
       "Bash(npx @cloudflare/next-on-pages)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npx tsc *)",
+      "Bash(grep -oP \"'[^']+'$\")",
+      "Bash(mkdir -p /Users/mui/projects/finance-app/src/app/brands/\\\\[brand\\\\])"
     ],
     "additionalDirectories": [
       "/Users/mui/Desktop",
-      "/Users/mui/projects/finance-app/src/app/api/payment-schedules"
+      "/Users/mui/projects/finance-app/src/app/api/payment-schedules",
+      "/Users/mui/projects/finance-app/src/app/brands"
     ]
   }
 }

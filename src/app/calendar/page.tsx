@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import { useState, useMemo } from 'react';
 import { Plus, Trash2, Pencil, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useFinanceStore } from '@/store/useFinanceStore';

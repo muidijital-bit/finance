@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import { useMemo, useState } from 'react';
 import { useFinanceStore, useMonthlyStats } from '@/store/useFinanceStore';
 import Card from '@/components/ui/Card';
