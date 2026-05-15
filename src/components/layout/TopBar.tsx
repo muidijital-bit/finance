@@ -1,6 +1,6 @@
 'use client';
 
-import { Moon, Sun, LogOut } from 'lucide-react';
+import { Moon, Sun, LogOut, Menu } from 'lucide-react';
 import { useFinanceStore } from '@/store/useFinanceStore';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -15,7 +15,11 @@ const PAGE_TITLES: Record<string, string> = {
   '/settings': 'Ayarlar',
 };
 
-export default function TopBar() {
+interface TopBarProps {
+  onMenuClick: () => void;
+}
+
+export default function TopBar({ onMenuClick }: TopBarProps) {
   const { darkMode, toggleDarkMode } = useFinanceStore();
   const pathname = usePathname();
   const router = useRouter();
@@ -27,8 +31,17 @@ export default function TopBar() {
   }
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-      <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h1>
+    <header className="flex items-center justify-between px-4 md:px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onMenuClick}
+          className="md:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+          aria-label="Menüyü aç"
+        >
+          <Menu size={20} />
+        </button>
+        <h1 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">{title}</h1>
+      </div>
 
       <div className="flex items-center gap-2">
         <button

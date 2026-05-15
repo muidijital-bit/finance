@@ -80,7 +80,7 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6">
       {/* Özet */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <p className="text-xs text-gray-500 dark:text-gray-400">Aylık Sabit Gider</p>
           <p className="text-xl font-semibold font-mono mt-1 text-red-600 dark:text-red-400">{formatCurrency(totalExpense, currency)}</p>

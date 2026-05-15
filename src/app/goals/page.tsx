@@ -49,7 +49,7 @@ export default function GoalsPage() {
   return (
     <div className="space-y-6">
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <p className="text-xs text-gray-500 dark:text-gray-400">Toplam Hedef</p>
           <p className="text-xl font-semibold font-mono mt-1 text-gray-900 dark:text-white">{formatCurrency(totalTarget, currency)}</p>

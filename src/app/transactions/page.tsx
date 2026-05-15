@@ -68,7 +68,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Toplam Gelir', value: totalIncome, color: 'text-green-600 dark:text-green-400' },
           { label: 'Toplam Gider', value: totalExpense, color: 'text-red-600 dark:text-red-400' },
@@ -81,13 +81,13 @@ export default function TransactionsPage() {
         ))}
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-0" style={{ minWidth: '160px' }}>
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" placeholder="İşlem ara..." value={search} onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
-        <div className="flex rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div className="flex rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden flex-shrink-0">
           {(['all', 'income', 'expense'] as const).map((t) => (
             <button key={t} onClick={() => setFilterType(t)}
               className={`px-3 py-2 text-xs font-medium transition-colors ${filterType === t ? 'bg-brand-500 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>

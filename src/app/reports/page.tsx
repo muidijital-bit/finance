@@ -65,7 +65,7 @@ export default function ReportsPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <p className="text-xs text-gray-500 dark:text-gray-400">Ort. Aylık Gelir</p>
           <p className="text-lg font-semibold font-mono mt-1 text-green-600 dark:text-green-400">{formatCurrency(avgIncome, currency)}</p>
