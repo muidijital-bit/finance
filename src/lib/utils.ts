@@ -51,6 +51,17 @@ export const CATEGORY_LABELS: Record<TransactionCategory, string> = {
   freelance: 'Serbest Çalışma',
   investment: 'Yatırım Geliri',
   other_income: 'Diğer Gelir',
+  // New expense categories
+  personel: 'Personel Gideri',
+  lisans_gider: 'Lisans / Yazılım',
+  kredi_gider: 'Kredi / Borç',
+  fatura: 'Fatura / Alım',
+  yatirim_gider: 'Yatırım Gideri',
+  demirbas_alimi: 'Demirbaş Alımı',
+  hizmet_gideri: 'Hizmet Gideri',
+  kredi_karti: 'Kredi Kartı',
+  other_expense: 'Diğer Gider',
+  // Legacy
   food: 'Yemek',
   transport: 'Ulaşım',
   housing: 'Konut',
@@ -59,7 +70,6 @@ export const CATEGORY_LABELS: Record<TransactionCategory, string> = {
   entertainment: 'Eğlence',
   shopping: 'Alışveriş',
   utilities: 'Faturalar',
-  other_expense: 'Diğer Gider',
 };
 
 export const CATEGORY_COLORS: Record<TransactionCategory, string> = {
@@ -67,6 +77,15 @@ export const CATEGORY_COLORS: Record<TransactionCategory, string> = {
   freelance: '#3b82f6',
   investment: '#8b5cf6',
   other_income: '#06b6d4',
+  personel: '#f97316',
+  lisans_gider: '#6366f1',
+  kredi_gider: '#ef4444',
+  fatura: '#eab308',
+  yatirim_gider: '#8b5cf6',
+  demirbas_alimi: '#0891b2',
+  hizmet_gideri: '#14b8a6',
+  kredi_karti: '#ec4899',
+  other_expense: '#9ca3af',
   food: '#f97316',
   transport: '#eab308',
   housing: '#ef4444',
@@ -75,7 +94,6 @@ export const CATEGORY_COLORS: Record<TransactionCategory, string> = {
   entertainment: '#6366f1',
   shopping: '#f43f5e',
   utilities: '#78716c',
-  other_expense: '#9ca3af',
 };
 
 export const CATEGORY_ICONS: Record<TransactionCategory, string> = {
@@ -83,6 +101,15 @@ export const CATEGORY_ICONS: Record<TransactionCategory, string> = {
   freelance: '💻',
   investment: '📈',
   other_income: '💰',
+  personel: '👥',
+  lisans_gider: '🔑',
+  kredi_gider: '🏦',
+  fatura: '🧾',
+  yatirim_gider: '📊',
+  demirbas_alimi: '🖥️',
+  hizmet_gideri: '🔧',
+  kredi_karti: '💳',
+  other_expense: '📦',
   food: '🍽️',
   transport: '🚗',
   housing: '🏠',
@@ -91,7 +118,6 @@ export const CATEGORY_ICONS: Record<TransactionCategory, string> = {
   entertainment: '🎬',
   shopping: '🛍️',
   utilities: '💡',
-  other_expense: '📦',
 };
 
 export const SERVICE_LABELS: Record<MuiService, string> = {

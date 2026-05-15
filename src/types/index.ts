@@ -3,9 +3,14 @@
 export type TransactionType = 'income' | 'expense';
 
 export type TransactionCategory =
+  // Income
   | 'salary' | 'freelance' | 'investment' | 'other_income'
+  // New expense categories
+  | 'personel' | 'lisans_gider' | 'kredi_gider' | 'fatura'
+  | 'yatirim_gider' | 'demirbas_alimi' | 'hizmet_gideri' | 'kredi_karti' | 'other_expense'
+  // Legacy (kept for backward compat)
   | 'food' | 'transport' | 'housing' | 'health' | 'education'
-  | 'entertainment' | 'shopping' | 'utilities' | 'other_expense';
+  | 'entertainment' | 'shopping' | 'utilities';
 
 export type PaymentCategory =
   | 'kredi' | 'calisan_odemesi' | 'lisans' | 'demirbas'
@@ -22,6 +27,7 @@ export interface Transaction {
   category: TransactionCategory;
   amount: number;
   description: string;
+  note?: string;
   date: string;
   service?: MuiService;
   brand?: string;

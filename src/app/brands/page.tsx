@@ -9,7 +9,7 @@ import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { formatCurrency, BRAND_MAP, BRANDS } from '@/lib/utils';
-import { TrendingUp, ArrowRight, Calendar, Receipt, Settings2, Merge, Check, ChevronDown } from 'lucide-react';
+import { TrendingUp, ArrowRight, Calendar, Receipt, Settings2, Merge, Check, ChevronDown, Search, Pencil, X } from 'lucide-react';
 
 const INPUT_CLS = 'w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500';
 
@@ -22,6 +22,10 @@ export default function BrandsPage() {
   const [targetCustom, setTargetCustom] = useState('');
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [brandSearch, setBrandSearch] = useState('');
+  const [editingBrand, setEditingBrand] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [pageSearch, setPageSearch] = useState('');
 
   // All brands that exist in transaction data
   const brandStats = useMemo(() => {
@@ -70,7 +74,21 @@ export default function BrandsPage() {
     setTargetBrand('');
     setTargetCustom('');
     setDone(false);
+    setBrandSearch('');
+    setEditingBrand(null);
+    setEditingName('');
     setManageOpen(true);
+  }
+
+  async function handleInlineRename() {
+    const newName = editingName.trim();
+    if (!newName || !editingBrand || newName === editingBrand) { setEditingBrand(null); return; }
+    setSaving(true);
+    await rebrandTransactions([editingBrand], newName);
+    setSaving(false);
+    setEditingBrand(null);
+    setEditingName('');
+    setDone(true);
   }
 
   async function handleMerge() {
@@ -94,11 +112,17 @@ export default function BrandsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1" style={{ minWidth: '180px' }}>
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input type="text" placeholder="Marka ara..." value={pageSearch}
+            onChange={(e) => setPageSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
           {brandStats.length} marka · toplam gelire göre sıralı
         </p>
-        <Button variant="secondary" onClick={openManage}>
+        <Button variant="secondary" onClick={openManage} className="flex-shrink-0">
           <Settings2 size={14} /> Marka Yönetimi
         </Button>
       </div>
@@ -109,7 +133,7 @@ export default function BrandsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {brandStats.map((b, i) => (
+          {brandStats.filter((b) => !pageSearch || b.label.toLowerCase().includes(pageSearch.toLowerCase()) || b.brand.toLowerCase().includes(pageSearch.toLowerCase())).map((b, i) => (
             <Card key={b.brand} className="flex flex-col gap-3 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
@@ -168,33 +192,65 @@ export default function BrandsPage() {
 
           {/* Brand checklist */}
           <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-            <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                Kaynak markalar {selected.size > 0 && <span className="text-brand-600 dark:text-brand-400">· {selected.size} seçili</span>}
-              </p>
+            <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+              <Search size={12} className="text-gray-400 flex-shrink-0" />
+              <input type="text" placeholder="Marka ara..." value={brandSearch}
+                onChange={(e) => setBrandSearch(e.target.value)}
+                className="flex-1 text-xs bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400" />
+              <span className="text-xs text-gray-400 flex-shrink-0">
+                {selected.size > 0 && <span className="text-brand-600 dark:text-brand-400">{selected.size} seçili</span>}
+              </span>
             </div>
             <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-64 overflow-y-auto">
-              {brandStats.map((b) => {
+              {brandStats.filter((b) => !brandSearch || b.label.toLowerCase().includes(brandSearch.toLowerCase())).map((b) => {
                 const isSelected = selected.has(b.brand);
+                const isEditing = editingBrand === b.brand;
                 return (
-                  <button key={b.brand} onClick={() => toggleSelect(b.brand)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                  <div key={b.brand}
+                    className={`flex items-center gap-2 px-3 py-2.5 transition-colors ${
                       isSelected ? 'bg-brand-50 dark:bg-brand-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     }`}>
-                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 transition-colors ${
-                      isSelected ? 'bg-brand-500 border-brand-500' : 'border-gray-300 dark:border-gray-600'
-                    }`}>
-                      {isSelected && <Check size={11} className="text-white" />}
-                    </div>
+                    {/* Checkbox */}
+                    <button onClick={() => { if (!isEditing) toggleSelect(b.brand); }}
+                      className="flex-shrink-0">
+                      <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${
+                        isSelected ? 'bg-brand-500 border-brand-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}>
+                        {isSelected && <Check size={11} className="text-white" />}
+                      </div>
+                    </button>
                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: b.color }} />
+
+                    {/* Inline edit or label */}
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{b.label}</span>
-                      {b.label !== b.brand && (
-                        <span className="ml-2 text-xs text-gray-400 font-mono">{b.brand}</span>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1">
+                          <input autoFocus type="text" value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleInlineRename(); if (e.key === 'Escape') setEditingBrand(null); }}
+                            className="flex-1 text-sm px-2 py-0.5 border border-brand-400 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none" />
+                          <button onClick={handleInlineRename} className="p-1 text-green-500 hover:text-green-600">
+                            <Check size={13} />
+                          </button>
+                          <button onClick={() => setEditingBrand(null)} className="p-1 text-gray-400 hover:text-gray-600">
+                            <X size={13} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{b.label}</span>
                       )}
                     </div>
+
                     <span className="text-xs text-gray-400 flex-shrink-0">{b.txCount} işlem</span>
-                  </button>
+
+                    {/* Edit button */}
+                    {!isEditing && (
+                      <button onClick={() => { setEditingBrand(b.brand); setEditingName(b.label); setDone(false); }}
+                        className="flex-shrink-0 p-1 text-gray-300 hover:text-brand-500 transition-colors">
+                        <Pencil size={12} />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>

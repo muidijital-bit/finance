@@ -17,7 +17,8 @@ import { Transaction, TransactionCategory, TransactionType, MuiService } from '@
 
 const INCOME_CATEGORIES: TransactionCategory[] = ['salary', 'freelance', 'investment', 'other_income'];
 const EXPENSE_CATEGORIES: TransactionCategory[] = [
-  'food', 'transport', 'housing', 'health', 'education', 'entertainment', 'shopping', 'utilities', 'other_expense',
+  'personel', 'lisans_gider', 'kredi_gider', 'fatura',
+  'yatirim_gider', 'demirbas_alimi', 'hizmet_gideri', 'kredi_karti', 'other_expense',
 ];
 const SERVICES = Object.keys(SERVICE_LABELS) as MuiService[];
 
@@ -29,10 +30,11 @@ type FormState = {
   category: TransactionCategory;
   amount: string;
   description: string;
+  note: string;
   date: string;
   service: MuiService | '';
   brand: string;
-  brandCustom: string; // "özel giriş" modu için
+  brandCustom: string;
 };
 
 const defaultForm: FormState = {
@@ -40,6 +42,7 @@ const defaultForm: FormState = {
   category: 'freelance',
   amount: '',
   description: '',
+  note: '',
   date: new Date().toISOString().split('T')[0],
   service: '',
   brand: '',
@@ -208,6 +211,7 @@ export default function TransactionsPage() {
       category: tx.category,
       amount: String(tx.amount),
       description: tx.description,
+      note: tx.note ?? '',
       date: tx.date,
       service: tx.service ?? '',
       brand: tx.brand ?? '',
@@ -230,6 +234,7 @@ export default function TransactionsPage() {
       category: form.category,
       amount: parseFloat(form.amount),
       description: form.description,
+      note: form.note || undefined,
       date: form.date,
       service: form.service || undefined,
       brand,
@@ -426,8 +431,16 @@ export default function TransactionsPage() {
           {/* Description */}
           <div>
             <label className={LABEL_CLS}>Açıklama</label>
-            <input type="text" placeholder="Müşteri adı veya not" value={form.description}
+            <input type="text" placeholder="Müşteri adı, fatura no, kısa açıklama..." value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })} className={INPUT_CLS} />
+          </div>
+
+          {/* Note */}
+          <div>
+            <label className={LABEL_CLS}>Not (opsiyonel)</label>
+            <textarea rows={2} placeholder="Detay not, ödeme koşulları, referans vb." value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              className={`${INPUT_CLS} resize-none`} />
           </div>
 
           <div className="flex gap-3 pt-2">

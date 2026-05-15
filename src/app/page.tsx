@@ -281,21 +281,64 @@ export default function DashboardPage() {
 
       {topServices.length > 0 && (
         <Card>
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-5">Hizmet Bazlı Aylık Gelir (Son 6 Ay)</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={monthlyServiceData} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} />
-              <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} />
-              <Tooltip contentStyle={{ background: '#1f2937', border: 'none', borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: '#d1d5db' }} itemStyle={{ color: '#f9fafb' }}
-                formatter={(v: number) => formatCurrency(v, currency)} />
-              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-              {topServices.map((s) => (
-                <Bar key={s} dataKey={SERVICE_LABELS[s as never]} fill={SERVICE_COLORS[s as never]} radius={[3, 3, 0, 0]} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Hizmet Bazlı Aylık Gelir (Son 6 Ay)</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-800">
+                  <th className="text-left font-medium text-gray-500 pb-2 pr-3 whitespace-nowrap">Hizmet</th>
+                  {last6.map((m) => (
+                    <th key={m.month} className="text-right font-medium text-gray-500 pb-2 px-2 whitespace-nowrap">{m.month.slice(5)}</th>
+                  ))}
+                  <th className="text-right font-medium text-gray-500 pb-2 pl-2 whitespace-nowrap">Toplam</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                {topServices.map((s) => {
+                  const rowTotal = last6.reduce((sum, m) => sum + ((monthlyServiceData.find((r) => r.month === m.month.slice(5))?.[SERVICE_LABELS[s as never]] as number) || 0), 0);
+                  return (
+                    <tr key={s} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                      <td className="py-2.5 pr-3 whitespace-nowrap">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: SERVICE_COLORS[s as never] }} />
+                          <span className="text-gray-700 dark:text-gray-300 font-medium">{SERVICE_LABELS[s as never]}</span>
+                        </span>
+                      </td>
+                      {last6.map((m) => {
+                        const val = (monthlyServiceData.find((r) => r.month === m.month.slice(5))?.[SERVICE_LABELS[s as never]] as number) || 0;
+                        return (
+                          <td key={m.month} className="py-2.5 px-2 text-right font-mono whitespace-nowrap">
+                            {val > 0
+                              ? <span className="text-gray-900 dark:text-white">{formatCurrency(val, currency)}</span>
+                              : <span className="text-gray-300 dark:text-gray-700">—</span>}
+                          </td>
+                        );
+                      })}
+                      <td className="py-2.5 pl-2 text-right font-mono font-semibold whitespace-nowrap text-gray-900 dark:text-white">
+                        {rowTotal > 0 ? formatCurrency(rowTotal, currency) : <span className="text-gray-300 dark:text-gray-700">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-gray-200 dark:border-gray-800">
+                  <td className="pt-2.5 pr-3 text-xs font-semibold text-gray-600 dark:text-gray-400">Toplam</td>
+                  {last6.map((m) => {
+                    const colTotal = topServices.reduce((sum, s) => sum + ((monthlyServiceData.find((r) => r.month === m.month.slice(5))?.[SERVICE_LABELS[s as never]] as number) || 0), 0);
+                    return (
+                      <td key={m.month} className="pt-2.5 px-2 text-right font-mono font-semibold whitespace-nowrap text-gray-900 dark:text-white">
+                        {colTotal > 0 ? formatCurrency(colTotal, currency) : <span className="text-gray-300 dark:text-gray-700">—</span>}
+                      </td>
+                    );
+                  })}
+                  <td className="pt-2.5 pl-2 text-right font-mono font-bold whitespace-nowrap" style={{ color: '#5F17EC' }}>
+                    {formatCurrency(topServices.reduce((sum, s) => sum + last6.reduce((s2, m) => s2 + ((monthlyServiceData.find((r) => r.month === m.month.slice(5))?.[SERVICE_LABELS[s as never]] as number) || 0), 0), 0), currency)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </Card>
       )}
 

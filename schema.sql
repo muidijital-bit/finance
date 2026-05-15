@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   category TEXT NOT NULL,
   amount REAL NOT NULL,
   description TEXT,
+  note TEXT,
   date TEXT NOT NULL,
   service TEXT,
   brand TEXT,
