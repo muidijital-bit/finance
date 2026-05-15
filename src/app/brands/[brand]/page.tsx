@@ -30,17 +30,19 @@ function getMonthRange(dates: string[]): string[] {
 }
 
 export default function BrandDetailPage() {
-  const { brand } = useParams<{ brand: string }>();
+  const params = useParams<{ brand: string }>();
+  const brand = decodeURIComponent(params.brand);
   const router = useRouter();
-  const { transactions, currency } = useFinanceStore();
+  const { transactions, currency, initialized, brands: dbBrands } = useFinanceStore();
 
   const [notes, setNotes] = useState<BrandNote[]>([]);
   const [noteInput, setNoteInput] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
-  const info = BRAND_MAP[brand];
+  const dbBrandInfo = dbBrands.find((b) => b.value === brand);
+  const info = dbBrandInfo ?? BRAND_MAP[brand];
   const color = info?.color ?? '#9ca3af';
-  const labelText = info?.label ?? decodeURIComponent(brand);
+  const labelText = info?.label ?? brand;
 
   // Fetch notes on mount
   useEffect(() => {
@@ -109,13 +111,25 @@ export default function BrandDetailPage() {
   const unpaidMonths = allMonths.length - paidMonths;
   const avgPerMonth = paidMonths > 0 ? totalRevenue / paidMonths : 0;
 
+  if (!initialized) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-6 h-6 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
   if (brandTxs.length === 0) {
     return (
       <div className="space-y-4">
         <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
           <ArrowLeft size={16} /> Geri
         </button>
-        <p className="text-center text-gray-400 py-16 text-sm">Bu marka için işlem bulunamadı.</p>
+        <p className="text-center text-gray-400 py-16 text-sm">
+          Bu marka için işlem bulunamadı.
+          <br />
+          <span className="text-xs text-gray-300 mt-1 block font-mono">{brand}</span>
+        </p>
       </div>
     );
   }
