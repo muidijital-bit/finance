@@ -44,6 +44,7 @@ export interface Brand {
   note?: string;
   monthlyTarget?: number;
   targetCurrency?: string;
+  dueDay?: number;
 }
 
 export interface BrandReceivable {

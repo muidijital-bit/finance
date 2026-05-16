@@ -48,6 +48,7 @@ export default function BrandsPage() {
   const [targetModal, setTargetModal] = useState<{ brandKey: string; dbId?: string; label: string; color: string } | null>(null);
   const [targetAmount, setTargetAmount] = useState('');
   const [targetCurrency, setTargetCurrencyState] = useState('TRY');
+  const [targetDueDay, setTargetDueDay] = useState('1');
 
   // Receivable modal (sabit + ekstra tahsilat)
   const [receivableModal, setReceivableModal] = useState<{ brandKey: string; label: string; color: string; existing?: BrandReceivable } | null>(null);
@@ -59,9 +60,9 @@ export default function BrandsPage() {
 
   // Combined BRAND_MAP
   const combinedBrandMap = useMemo(() => {
-    const map: Record<string, { label: string; color: string; isActive: boolean; id?: string; monthlyTarget?: number; targetCurrency?: string }> = {};
+    const map: Record<string, { label: string; color: string; isActive: boolean; id?: string; monthlyTarget?: number; targetCurrency?: string; dueDay?: number }> = {};
     BRANDS.forEach((b) => { map[b.value] = { label: b.label, color: b.color, isActive: true }; });
-    dbBrands.forEach((b) => { map[b.value] = { label: b.label, color: b.color, isActive: b.isActive, id: b.id, monthlyTarget: b.monthlyTarget, targetCurrency: b.targetCurrency }; });
+    dbBrands.forEach((b) => { map[b.value] = { label: b.label, color: b.color, isActive: b.isActive, id: b.id, monthlyTarget: b.monthlyTarget, targetCurrency: b.targetCurrency, dueDay: b.dueDay }; });
     return map;
   }, [dbBrands]);
 
@@ -92,6 +93,7 @@ export default function BrandsPage() {
           dbId: info?.id,
           monthlyTarget: info?.monthlyTarget ?? 0,
           targetCurrency: info?.targetCurrency ?? 'TRY',
+          dueDay: info?.dueDay ?? 1,
           total: s.total,
           monthCount: s.months.size,
           txCount: s.count,
@@ -154,23 +156,27 @@ export default function BrandsPage() {
     setTargetModal({ brandKey: b.brand, dbId: b.dbId, label: b.label, color: b.color });
     setTargetAmount(b.monthlyTarget ? String(b.monthlyTarget) : '');
     setTargetCurrencyState(b.targetCurrency ?? 'TRY');
+    const dbInfo = dbBrands.find((d) => d.id === b.dbId);
+    setTargetDueDay(String(dbInfo?.dueDay ?? 1));
   }
 
   function openTargetModalDbOnly(b: typeof dbBrands[0]) {
     setTargetModal({ brandKey: b.value, dbId: b.id, label: b.label, color: b.color });
     setTargetAmount(b.monthlyTarget ? String(b.monthlyTarget) : '');
     setTargetCurrencyState(b.targetCurrency ?? 'TRY');
+    setTargetDueDay(String(b.dueDay ?? 1));
   }
 
   async function saveTarget() {
     if (!targetModal) return;
     const amt = parseFloat(targetAmount) || 0;
+    const dd = parseInt(targetDueDay) || 1;
     if (targetModal.dbId) {
       const dbBrand = dbBrands.find((b) => b.id === targetModal.dbId);
-      if (dbBrand) await updateBrand(targetModal.dbId, { monthlyTarget: amt, targetCurrency: targetCurrency });
+      if (dbBrand) await updateBrand(targetModal.dbId, { monthlyTarget: amt, targetCurrency: targetCurrency, dueDay: dd });
     } else {
       const stat = brandStats.find((b) => b.brand === targetModal.brandKey);
-      if (stat) await addBrand({ value: stat.brand, label: stat.label, color: stat.color, isActive: stat.isActive, monthlyTarget: amt, targetCurrency: targetCurrency });
+      if (stat) await addBrand({ value: stat.brand, label: stat.label, color: stat.color, isActive: stat.isActive, monthlyTarget: amt, targetCurrency: targetCurrency, dueDay: dd });
     }
     setTargetModal(null);
   }
@@ -498,6 +504,12 @@ export default function BrandsPage() {
                   {['TRY', 'USD', 'EUR', 'GBP'].map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
+            </div>
+            <div>
+              <label className={LABEL_CLS}>Ödeme Son Günü (ayın kaçı)</label>
+              <input type="number" min={1} max={31} placeholder="1-31" value={targetDueDay}
+                onChange={(e) => setTargetDueDay(e.target.value)} className={INPUT_CLS} />
+              <p className="text-xs text-gray-400 mt-1">Her ayın bu gününe kadar ödeme bekleniyor.</p>
             </div>
             <div className="flex gap-3 pt-2">
               <Button variant="secondary" className="flex-1" onClick={() => setTargetModal(null)}>İptal</Button>

@@ -3,7 +3,7 @@
 export const runtime = 'edge';
 
 import { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Wallet, Target, ArrowRight, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Target, ArrowRight, ChevronLeft, ChevronRight, Eye, EyeOff, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useFinanceStore, useMonthlyStats, useBudgetProgress } from '@/store/useFinanceStore';
 import { StatCard } from '@/components/ui/Card';
@@ -19,7 +19,7 @@ import {
 type ViewMode = 'monthly' | 'yearly' | 'all';
 
 export default function DashboardPage() {
-  const { transactions, budgets, investments, currency } = useFinanceStore();
+  const { transactions, budgets, investments, currency, brands: dbBrands, brandReceivables } = useFinanceStore();
 
   const now = new Date();
   const [viewMode, setViewMode] = useState<ViewMode>('monthly');
@@ -90,6 +90,31 @@ export default function DashboardPage() {
     transactions.filter((t) => t.type === 'income' && t.service).forEach((t) => seen.add(t.service!));
     return Array.from(seen).slice(0, 5);
   }, [transactions]);
+
+  // Brand monthly payment tracking — only brands with a monthly target
+  const brandPaymentRows = useMemo(() => {
+    const today = now.getDate();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return dbBrands
+      .filter((b) => b.isActive && (b.monthlyTarget ?? 0) > 0)
+      .map((b) => {
+        const rec = brandReceivables.find((r) => r.brand === b.value && r.month === thisMonth);
+        const received = rec ? (rec.fixedAmount + rec.extraAmount) : 0;
+        const dueDay = b.dueDay ?? 1;
+        const overdue = today > dueDay && received < (b.monthlyTarget ?? 0);
+        const complete = received >= (b.monthlyTarget ?? 0);
+        const pending = !complete && !overdue;
+        return { b, rec, received, dueDay, overdue, complete, pending, thisMonth };
+      })
+      .sort((a, z) => {
+        // Sort: overdue first, then pending, then complete
+        if (a.overdue && !z.overdue) return -1;
+        if (!a.overdue && z.overdue) return 1;
+        if (a.pending && z.complete) return -1;
+        if (a.complete && z.pending) return 1;
+        return a.dueDay - z.dueDay;
+      });
+  }, [dbBrands, brandReceivables, now]);
 
   const periodLabel = viewMode === 'monthly'
     ? `${MONTHS_TR[selectedMonth]} ${selectedYear}`
@@ -342,6 +367,101 @@ export default function DashboardPage() {
                   })}
                   <td className="pt-2.5 pl-2 text-right font-mono font-bold whitespace-nowrap" style={{ color: '#5F17EC' }}>
                     {formatCurrency(topServices.reduce((sum, s) => sum + last6.reduce((s2, m) => s2 + ((monthlyServiceData.find((r) => r.month === m.month.slice(5))?.[SERVICE_LABELS[s as never]] as number) || 0), 0), 0), currency)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* ── Brand monthly payment tracking ── */}
+      {brandPaymentRows.length > 0 && (
+        <Card padding="sm">
+          <div className="flex items-center justify-between px-2 pb-3 mb-1 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Target size={14} className="text-brand-500" />
+              Marka Aylık Tahsilat Takibi — {MONTHS_TR[now.getMonth()]} {now.getFullYear()}
+            </h2>
+            <Link href="/brands" className="text-xs text-brand-600 dark:text-brand-400 flex items-center gap-1 hover:underline">
+              Markalar <ArrowRight size={11} />
+            </Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-100 dark:border-gray-800">
+                  <th className="text-left font-medium text-gray-400 pb-2 pl-3">Marka</th>
+                  <th className="text-right font-medium text-gray-400 pb-2 px-3">Beklenen</th>
+                  <th className="text-right font-medium text-gray-400 pb-2 px-3">Sabit</th>
+                  <th className="text-right font-medium text-gray-400 pb-2 px-3">Ekstra</th>
+                  <th className="text-right font-medium text-gray-400 pb-2 px-3">Toplam</th>
+                  <th className="text-center font-medium text-gray-400 pb-2 pr-3 w-28">Son Gün</th>
+                  <th className="text-center font-medium text-gray-400 pb-2 pr-3 w-28">Durum</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                {brandPaymentRows.map(({ b, rec, received, dueDay, overdue, complete }) => (
+                  <tr key={b.id} className={overdue ? 'bg-red-50/50 dark:bg-red-900/5' : complete ? 'bg-green-50/30 dark:bg-green-900/5' : ''}>
+                    <td className="py-2.5 pl-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold"
+                          style={{ backgroundColor: b.color }}>
+                          {b.label.slice(0, 2).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-gray-900 dark:text-white">{b.label}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono text-gray-600 dark:text-gray-400">
+                      {hideAmounts ? '••••' : formatCurrency(b.monthlyTarget ?? 0, b.targetCurrency ?? 'TRY')}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono text-gray-700 dark:text-gray-300">
+                      {rec && rec.fixedAmount > 0 ? (hideAmounts ? '••••' : formatCurrency(rec.fixedAmount, rec.currency)) : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono text-blue-600 dark:text-blue-400">
+                      {rec && rec.extraAmount > 0 ? (hideAmounts ? '••••' : formatCurrency(rec.extraAmount, rec.currency)) : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono font-semibold">
+                      {received > 0
+                        ? <span className={complete ? 'text-green-600 dark:text-green-400' : 'text-orange-500'}>{hideAmounts ? '••••' : formatCurrency(received, rec?.currency ?? 'TRY')}</span>
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      <span className={`font-medium ${overdue && !complete ? 'text-red-500' : 'text-gray-500'}`}>
+                        Her ayın {dueDay}.
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-3 text-center">
+                      {complete ? (
+                        <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
+                          <CheckCircle2 size={12} /> Ödendi
+                        </span>
+                      ) : overdue ? (
+                        <span className="inline-flex items-center gap-1 text-red-500 font-medium">
+                          <AlertCircle size={12} /> Gecikti
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-orange-500">
+                          <Clock size={12} /> Bekliyor
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-gray-200 dark:border-gray-700">
+                  <td className="pt-2 pl-3 text-gray-500 font-medium">Toplam</td>
+                  <td className="pt-2 px-3 text-right font-mono font-semibold text-gray-700 dark:text-gray-300">
+                    {hideAmounts ? '••••' : formatCurrency(brandPaymentRows.reduce((s, r) => s + (r.b.monthlyTarget ?? 0), 0), currency)}
+                  </td>
+                  <td colSpan={2} />
+                  <td className="pt-2 px-3 text-right font-mono font-semibold text-green-600 dark:text-green-400">
+                    {hideAmounts ? '••••' : formatCurrency(brandPaymentRows.reduce((s, r) => s + r.received, 0), currency)}
+                  </td>
+                  <td />
+                  <td className="pt-2 pr-3 text-center text-xs text-gray-400">
+                    {brandPaymentRows.filter((r) => r.complete).length}/{brandPaymentRows.length} tamamlandı
                   </td>
                 </tr>
               </tfoot>

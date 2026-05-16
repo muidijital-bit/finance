@@ -16,6 +16,7 @@ export async function GET() {
     note: r.note ?? undefined,
     monthlyTarget: r.monthly_target ?? 0,
     targetCurrency: r.target_currency ?? 'TRY',
+    dueDay: r.due_day ?? 1,
   })));
 }
 
