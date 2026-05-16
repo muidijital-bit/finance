@@ -13,7 +13,7 @@ import { Brand, BrandReceivable } from '@/types';
 import {
   TrendingUp, ArrowRight, Calendar, Receipt, Plus,
   ToggleLeft, ToggleRight, AlertCircle, Trash2, Palette, Target,
-  CheckCircle2, CircleDollarSign, Pencil,
+  CheckCircle2, CircleDollarSign, Pencil, LayoutGrid, List, Users, UserX,
 } from 'lucide-react';
 
 const INPUT_CLS = 'w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500';
@@ -211,241 +211,386 @@ export default function BrandsPage() {
   }
 
   const topTotal = brandStats[0]?.total ?? 1;
-  const visibleBrands = brandStats.filter((b) =>
+
+  const filtered = brandStats.filter((b) =>
     !pageSearch || b.label.toLowerCase().includes(pageSearch.toLowerCase()) || b.brand.toLowerCase().includes(pageSearch.toLowerCase())
   );
+  const activeStats = filtered.filter((b) => b.isActive);
+  const passiveStats = filtered.filter((b) => !b.isActive);
+
+  const [view, setView] = useState<'table' | 'grid'>('table');
+
+  // Helper to render card actions (color, target, toggle, delete)
+  function CardActions({ b }: { b: typeof brandStats[0] }) {
+    return (
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        <div className="relative">
+          <button onClick={() => setColorEditBrand(colorEditBrand === b.brand ? null : b.brand)}
+            className="p-1 text-gray-300 hover:text-brand-500 transition-colors opacity-0 group-hover:opacity-100" title="Renk">
+            <Palette size={14} />
+          </button>
+          {colorEditBrand === b.brand && (
+            <div className="absolute right-0 top-7 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-3 w-48">
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {COLOR_PRESETS.map((c) => (
+                  <button key={c} onClick={() => handleColorChange(b, c)}
+                    className={`w-6 h-6 rounded-full transition-all ${b.color === c ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : ''}`}
+                    style={{ backgroundColor: c }} />
+                ))}
+              </div>
+              <input type="color" value={b.color} onChange={(e) => handleColorChange(b, e.target.value)}
+                className="w-full h-7 rounded cursor-pointer border border-gray-200 dark:border-gray-700" />
+            </div>
+          )}
+        </div>
+        <button onClick={() => openTargetModal(b)} className="p-1 text-gray-300 hover:text-brand-500 transition-colors opacity-0 group-hover:opacity-100" title="Hedef">
+          <Target size={14} />
+        </button>
+        <button onClick={() => toggleBrandActive(b)} className="p-1 text-gray-400 hover:text-brand-500 transition-colors">
+          {b.isActive ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
+        </button>
+        {b.dbId && (
+          <button onClick={() => setDeleteConfirm(b.brand)} className="p-1 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  function BrandCard({ b, rank }: { b: typeof brandStats[0]; rank: number }) {
+    const thisMonthRec = receivableMap[`${b.brand}__${THIS_MONTH}`];
+    const thisMonthTotal = thisMonthRec ? (thisMonthRec.fixedAmount + thisMonthRec.extraAmount) : 0;
+    const hasTarget = b.monthlyTarget > 0;
+    const balance = hasTarget ? b.monthlyTarget - thisMonthTotal : null;
+    return (
+      <Card className="flex flex-col gap-3 hover:shadow-md transition-shadow group">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ backgroundColor: b.color }}>{rank}</div>
+            <div className="min-w-0">
+              <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{b.label}</p>
+              <p className="text-xs text-gray-400">{b.txCount} işlem</p>
+            </div>
+          </div>
+          <CardActions b={b} />
+        </div>
+        {hasTarget && (
+          <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden text-xs">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 dark:bg-gray-800/50">
+              <span className="text-gray-400 flex items-center gap-1"><Target size={10} /> Aylık Hedef</span>
+              <span className="font-semibold font-mono text-gray-700 dark:text-gray-300">{formatCurrency(b.monthlyTarget, b.targetCurrency ?? 'TRY')}</span>
+            </div>
+            <div className="flex items-center justify-between px-3 py-1.5">
+              <span className="text-gray-400 flex items-center gap-1"><CircleDollarSign size={10} /> Bu Ay</span>
+              <span className={`font-semibold font-mono ${thisMonthTotal >= b.monthlyTarget ? 'text-green-600 dark:text-green-400' : 'text-orange-500'}`}>
+                {thisMonthTotal > 0 ? formatCurrency(thisMonthTotal, thisMonthRec?.currency ?? 'TRY') : '—'}
+              </span>
+            </div>
+            {balance !== null && (
+              <div className={`flex items-center justify-between px-3 py-1.5 border-t border-gray-100 dark:border-gray-800 ${balance <= 0 ? 'bg-green-50 dark:bg-green-900/10' : 'bg-orange-50 dark:bg-orange-900/10'}`}>
+                <span className={balance <= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-500'}>{balance <= 0 ? '✓ Tamamlandı' : 'Kalan Alacak'}</span>
+                <span className={`font-semibold font-mono ${balance <= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-500'}`}>
+                  {balance <= 0 ? formatCurrency(Math.abs(balance), b.targetCurrency ?? 'TRY') + ' fazla' : formatCurrency(balance, b.targetCurrency ?? 'TRY')}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+        <button onClick={() => openReceivableModal(b.brand, b.label, b.color)}
+          className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-lg border border-dashed text-xs font-medium transition-colors"
+          style={{ borderColor: b.color + '60', color: b.color }}>
+          <Plus size={11} />{thisMonthRec ? 'Bu Ay Tahsilatı Düzenle' : 'Bu Ay Tahsilat Ekle'}
+        </button>
+        <div>
+          <div className="flex items-end justify-between mb-1.5">
+            <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"><TrendingUp size={11} /> Toplam Gelir</span>
+            <span className="text-base font-bold font-mono text-gray-900 dark:text-white">{formatCurrency(b.total, currency)}</span>
+          </div>
+          <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${(b.total / topTotal) * 100}%`, backgroundColor: b.color }} />
+          </div>
+        </div>
+        {b.lastRemaining != null && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <AlertCircle size={13} className="text-amber-500 flex-shrink-0" />
+            <span className="text-xs text-amber-700 dark:text-amber-300">Kalan: <span className="font-semibold font-mono">{formatCurrency(b.lastRemaining, currency)}</span></span>
+          </div>
+        )}
+        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+          <span className="flex items-center gap-1"><Calendar size={11} />{b.monthCount} ay</span>
+          <span className="flex items-center gap-1"><Receipt size={11} />Ort. {formatCurrency(b.avgPerMonth, currency)}/ay</span>
+        </div>
+        <Link href={`/brands/${b.brand}`}
+          className="mt-auto flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium"
+          style={{ backgroundColor: b.color + '12', color: b.color }}>
+          Detay <ArrowRight size={13} />
+        </Link>
+      </Card>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* ── Header ── */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1" style={{ minWidth: '180px' }}>
-          <input type="text" placeholder="Marka ara..." value={pageSearch}
+          <input type="text" placeholder="Marka / müşteri ara..." value={pageSearch}
             onChange={(e) => setPageSearch(e.target.value)}
             className="w-full pl-4 pr-4 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
-        <p className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">{brandStats.length} marka</p>
+        <div className="flex rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden flex-shrink-0">
+          <button onClick={() => setView('table')}
+            className={`px-2.5 py-1.5 text-xs font-medium flex items-center gap-1 transition-colors ${view === 'table' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+            <List size={13} /> Tablo
+          </button>
+          <button onClick={() => setView('grid')}
+            className={`px-2.5 py-1.5 text-xs font-medium flex items-center gap-1 transition-colors ${view === 'grid' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+            <LayoutGrid size={13} /> Kart
+          </button>
+        </div>
         <Button variant="primary" onClick={() => setAddOpen(true)} className="flex-shrink-0">
           <Plus size={14} /> Yeni Marka
         </Button>
       </div>
 
-      {visibleBrands.length === 0 && dbOnlyBrands.length === 0 ? (
+      {brandStats.length === 0 && dbOnlyBrands.length === 0 ? (
         <div className="flex items-center justify-center h-64">
-          <p className="text-gray-400 text-sm">Henüz markalı işlem yok.</p>
+          <p className="text-gray-400 text-sm">Henüz marka / müşteri yok.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {visibleBrands.map((b, i) => {
-            const thisMonthRec = receivableMap[`${b.brand}__${THIS_MONTH}`];
-            const thisMonthTotal = thisMonthRec ? (thisMonthRec.fixedAmount + thisMonthRec.extraAmount) : 0;
-            const hasTarget = b.monthlyTarget > 0;
-            const balance = hasTarget ? b.monthlyTarget - thisMonthTotal : null;
+        <>
+          {/* ── AKTİF MÜŞTERİLER ── */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <Users size={15} className="text-green-500" />
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Aktif Müşteriler</h2>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">{activeStats.length + dbOnlyBrands.filter(b => b.isActive).length}</span>
+            </div>
 
-            return (
-              <Card key={b.brand} className={`flex flex-col gap-3 hover:shadow-md transition-shadow group ${!b.isActive ? 'opacity-50' : ''}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                      style={{ backgroundColor: b.color }}>
-                      {i + 1}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{b.label}</p>
-                      <p className="text-xs text-gray-400">{b.txCount} işlem</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-0.5 flex-shrink-0">
-                    {/* Color picker */}
-                    <div className="relative">
-                      <button onClick={() => setColorEditBrand(colorEditBrand === b.brand ? null : b.brand)}
-                        className="p-1 text-gray-300 hover:text-brand-500 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Renk değiştir">
-                        <Palette size={14} />
-                      </button>
-                      {colorEditBrand === b.brand && (
-                        <div className="absolute right-0 top-7 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-3 w-48">
-                          <div className="flex flex-wrap gap-1.5 mb-2">
-                            {COLOR_PRESETS.map((c) => (
-                              <button key={c} onClick={() => handleColorChange(b, c)}
-                                className={`w-6 h-6 rounded-full transition-all ${b.color === c ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : ''}`}
-                                style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                          <input type="color" value={b.color}
-                            onChange={(e) => handleColorChange(b, e.target.value)}
-                            className="w-full h-7 rounded cursor-pointer border border-gray-200 dark:border-gray-700" />
-                        </div>
-                      )}
-                    </div>
-                    {/* Monthly target */}
-                    <button onClick={() => openTargetModal(b)}
-                      className="p-1 text-gray-300 hover:text-brand-500 transition-colors opacity-0 group-hover:opacity-100"
-                      title="Aylık hedef belirle">
-                      <Target size={14} />
-                    </button>
-                    {/* Toggle */}
-                    <button onClick={() => toggleBrandActive(b)}
-                      className="p-1 text-gray-400 hover:text-brand-500 transition-colors">
-                      {b.isActive ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
-                    </button>
-                    {/* Delete */}
-                    {b.dbId && (
-                      <button onClick={() => setDeleteConfirm(b.brand)}
-                        className="p-1 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                        <Trash2 size={14} />
-                      </button>
+            {view === 'table' ? (
+              <Card padding="sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 dark:border-gray-800 text-xs font-medium text-gray-400">
+                        <th className="text-left pb-2 pl-3 w-8">#</th>
+                        <th className="text-left pb-2 px-3">Marka / Müşteri</th>
+                        <th className="text-right pb-2 px-3">Toplam Gelir</th>
+                        <th className="text-right pb-2 px-3">Ort./Ay</th>
+                        <th className="text-right pb-2 px-3">Aylık Hedef</th>
+                        <th className="text-right pb-2 px-3">Bu Ay Tahsilat</th>
+                        <th className="text-center pb-2 px-3">Son Gün</th>
+                        <th className="text-center pb-2 px-3">Durum</th>
+                        <th className="pb-2 pr-3 w-24" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                      {activeStats.map((b, i) => {
+                        const rec = receivableMap[`${b.brand}__${THIS_MONTH}`];
+                        const received = rec ? rec.fixedAmount + rec.extraAmount : 0;
+                        const hasTarget = b.monthlyTarget > 0;
+                        const today = new Date().getDate();
+                        const complete = hasTarget && received >= b.monthlyTarget;
+                        const overdue = hasTarget && !complete && today > b.dueDay;
+                        return (
+                          <tr key={b.brand} className="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                            <td className="py-3 pl-3">
+                              <div className="w-6 h-6 rounded-md flex items-center justify-center text-white text-[11px] font-bold"
+                                style={{ backgroundColor: b.color }}>{i + 1}</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div>
+                                <p className="font-medium text-gray-900 dark:text-white">{b.label}</p>
+                                <p className="text-xs text-gray-400">{b.txCount} işlem · {b.monthCount} ay</p>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-right font-mono font-semibold text-gray-900 dark:text-white">{formatCurrency(b.total, currency)}</td>
+                            <td className="py-3 px-3 text-right font-mono text-gray-500 text-xs">{formatCurrency(b.avgPerMonth, currency)}</td>
+                            <td className="py-3 px-3 text-right font-mono text-gray-600 dark:text-gray-400 text-xs">
+                              {hasTarget ? formatCurrency(b.monthlyTarget, b.targetCurrency ?? 'TRY') : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="py-3 px-3 text-right font-mono text-xs">
+                              {received > 0
+                                ? <span className={complete ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-orange-500'}>{formatCurrency(received, rec?.currency ?? 'TRY')}</span>
+                                : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="py-3 px-3 text-center text-xs text-gray-500">
+                              {hasTarget ? `${b.dueDay}.` : '—'}
+                            </td>
+                            <td className="py-3 px-3 text-center">
+                              {!hasTarget ? <span className="text-gray-300 text-xs">—</span>
+                                : complete ? <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400 font-medium"><CheckCircle2 size={11} /> Ödendi</span>
+                                : overdue ? <span className="inline-flex items-center gap-1 text-xs text-red-500 font-medium"><AlertCircle size={11} /> Gecikti</span>
+                                : <span className="text-xs text-orange-500">Bekliyor</span>}
+                            </td>
+                            <td className="py-3 pr-3">
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                                <button onClick={() => openReceivableModal(b.brand, b.label, b.color)}
+                                  className="p-1 rounded text-gray-400 hover:text-green-500" title="Tahsilat ekle"><CircleDollarSign size={13} /></button>
+                                <button onClick={() => openTargetModal(b)}
+                                  className="p-1 rounded text-gray-400 hover:text-brand-500" title="Hedef"><Target size={13} /></button>
+                                <button onClick={() => toggleBrandActive(b)}
+                                  className="p-1 rounded text-gray-400 hover:text-orange-500" title="Pasife al"><ToggleRight size={15} className="text-green-500" /></button>
+                                <Link href={`/brands/${b.brand}`} className="p-1 rounded text-gray-400 hover:text-brand-500"><ArrowRight size={13} /></Link>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {dbOnlyBrands.filter(b => b.isActive).map((b) => {
+                        const rec = receivableMap[`${b.value}__${THIS_MONTH}`];
+                        const received = rec ? rec.fixedAmount + rec.extraAmount : 0;
+                        return (
+                          <tr key={b.id} className="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors opacity-60">
+                            <td className="py-3 pl-3">
+                              <div className="w-6 h-6 rounded-md flex items-center justify-center text-white text-[11px] font-bold"
+                                style={{ backgroundColor: b.color }}>—</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <p className="font-medium text-gray-900 dark:text-white">{b.label}</p>
+                              <p className="text-xs text-gray-400">İşlem yok</p>
+                            </td>
+                            <td className="py-3 px-3 text-right text-gray-300 text-xs">—</td>
+                            <td className="py-3 px-3 text-right text-gray-300 text-xs">—</td>
+                            <td className="py-3 px-3 text-right font-mono text-xs text-gray-500">
+                              {(b.monthlyTarget ?? 0) > 0 ? formatCurrency(b.monthlyTarget!, b.targetCurrency ?? 'TRY') : '—'}
+                            </td>
+                            <td className="py-3 px-3 text-right font-mono text-xs">
+                              {received > 0 ? formatCurrency(received, rec?.currency ?? 'TRY') : <span className="text-gray-300">—</span>}
+                            </td>
+                            <td className="py-3 px-3 text-center text-xs text-gray-400">{(b.dueDay ?? 0) > 0 ? `${b.dueDay}.` : '—'}</td>
+                            <td className="py-3 px-3 text-center text-xs text-gray-300">—</td>
+                            <td className="py-3 pr-3">
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 justify-end">
+                                <button onClick={() => openReceivableModal(b.value, b.label, b.color)}
+                                  className="p-1 rounded text-gray-400 hover:text-green-500"><CircleDollarSign size={13} /></button>
+                                <button onClick={() => openTargetModalDbOnly(b)}
+                                  className="p-1 rounded text-gray-400 hover:text-brand-500"><Target size={13} /></button>
+                                <button onClick={() => updateBrand(b.id, { isActive: false })}
+                                  className="p-1 rounded text-gray-400 hover:text-orange-500"><ToggleRight size={15} className="text-green-500" /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    {activeStats.length > 0 && (
+                      <tfoot>
+                        <tr className="border-t border-gray-200 dark:border-gray-700 text-xs font-semibold">
+                          <td className="pt-2 pl-3 text-gray-400" colSpan={2}>{activeStats.length} aktif müşteri</td>
+                          <td className="pt-2 px-3 text-right font-mono text-gray-900 dark:text-white">{formatCurrency(activeStats.reduce((s, b) => s + b.total, 0), currency)}</td>
+                          <td />
+                          <td className="pt-2 px-3 text-right font-mono text-gray-600 dark:text-gray-400">
+                            {formatCurrency(activeStats.filter(b => b.monthlyTarget > 0).reduce((s, b) => s + b.monthlyTarget, 0), currency)}
+                          </td>
+                          <td className="pt-2 px-3 text-right font-mono text-green-600 dark:text-green-400">
+                            {formatCurrency(activeStats.reduce((s, b) => { const r = receivableMap[`${b.brand}__${THIS_MONTH}`]; return s + (r ? r.fixedAmount + r.extraAmount : 0); }, 0), currency)}
+                          </td>
+                          <td colSpan={3} />
+                        </tr>
+                      </tfoot>
                     )}
-                  </div>
+                  </table>
                 </div>
-
-                {/* Monthly target + this month receivable */}
-                {hasTarget && (
-                  <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden text-xs">
-                    <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 dark:bg-gray-800/50">
-                      <span className="text-gray-400 flex items-center gap-1"><Target size={10} /> Aylık Hedef</span>
-                      <span className="font-semibold font-mono text-gray-700 dark:text-gray-300">{formatCurrency(b.monthlyTarget, b.targetCurrency ?? 'TRY')}</span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-1.5">
-                      <span className="text-gray-400 flex items-center gap-1"><CircleDollarSign size={10} /> Bu Ay Tahsilat</span>
-                      <span className={`font-semibold font-mono ${thisMonthTotal >= b.monthlyTarget ? 'text-green-600 dark:text-green-400' : 'text-orange-500'}`}>
-                        {thisMonthTotal > 0 ? formatCurrency(thisMonthTotal, thisMonthRec?.currency ?? 'TRY') : '—'}
-                      </span>
-                    </div>
-                    {balance !== null && (
-                      <div className={`flex items-center justify-between px-3 py-1.5 border-t border-gray-100 dark:border-gray-800 ${balance <= 0 ? 'bg-green-50 dark:bg-green-900/10' : 'bg-orange-50 dark:bg-orange-900/10'}`}>
-                        <span className={balance <= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-500'}>
-                          {balance <= 0 ? '✓ Tamamlandı' : 'Kalan Alacak'}
-                        </span>
-                        <span className={`font-semibold font-mono ${balance <= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-500'}`}>
-                          {balance <= 0 ? formatCurrency(Math.abs(balance), b.targetCurrency ?? 'TRY') + ' fazla' : formatCurrency(balance, b.targetCurrency ?? 'TRY')}
-                        </span>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeStats.map((b, i) => <BrandCard key={b.brand} b={b} rank={i + 1} />)}
+                {dbOnlyBrands.filter(b => b.isActive).map((b) => (
+                  <Card key={b.id} className="flex flex-col gap-3 border-dashed group">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: b.color }}>M</div>
+                        <div><p className="font-semibold text-gray-900 dark:text-white text-sm">{b.label}</p><p className="text-xs text-gray-400">İşlem yok</p></div>
                       </div>
-                    )}
-                  </div>
-                )}
+                      <div className="flex items-center gap-0.5">
+                        <button onClick={() => openTargetModalDbOnly(b)} className="p-1 text-gray-300 hover:text-brand-500 opacity-0 group-hover:opacity-100"><Target size={14} /></button>
+                        <button onClick={() => updateBrand(b.id, { isActive: false })} className="p-1 text-gray-400"><ToggleRight size={18} className="text-green-500" /></button>
+                        <button onClick={() => setDeleteConfirm(b.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                    <button onClick={() => openReceivableModal(b.value, b.label, b.color)}
+                      className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-lg border border-dashed text-xs font-medium"
+                      style={{ borderColor: b.color + '60', color: b.color }}>
+                      <Plus size={11} /> Bu Ay Tahsilat Ekle
+                    </button>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
 
-                {/* Tahsilat ekle butonu */}
-                <button
-                  onClick={() => openReceivableModal(b.brand, b.label, b.color)}
-                  className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-lg border border-dashed text-xs font-medium transition-colors"
-                  style={{ borderColor: b.color + '60', color: b.color }}>
-                  <Plus size={11} />
-                  {thisMonthRec ? 'Bu Ay Tahsilatı Düzenle' : 'Bu Ay Tahsilat Ekle'}
-                </button>
-
-                <div>
-                  <div className="flex items-end justify-between mb-1.5">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                      <TrendingUp size={11} /> Toplam Gelir
-                    </span>
-                    <span className="text-base font-bold font-mono text-gray-900 dark:text-white">
-                      {formatCurrency(b.total, currency)}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${(b.total / topTotal) * 100}%`, backgroundColor: b.color }} />
-                  </div>
+          {/* ── PASİF MÜŞTERİLER ── */}
+          {(passiveStats.length > 0 || dbOnlyBrands.filter(b => !b.isActive).length > 0) && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <UserX size={15} className="text-gray-400" />
+                <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">Pasif Müşteriler</h2>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 font-medium">{passiveStats.length + dbOnlyBrands.filter(b => !b.isActive).length}</span>
+              </div>
+              <Card padding="sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 dark:border-gray-800 text-xs font-medium text-gray-400">
+                        <th className="text-left pb-2 pl-3">Marka / Müşteri</th>
+                        <th className="text-right pb-2 px-3">Toplam Gelir</th>
+                        <th className="text-right pb-2 px-3">Ort./Ay</th>
+                        <th className="text-right pb-2 px-3">Son İşlem</th>
+                        <th className="pb-2 pr-3 w-20" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50 opacity-60">
+                      {passiveStats.map((b) => (
+                        <tr key={b.brand} className="group hover:opacity-100 transition-opacity">
+                          <td className="py-2.5 pl-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: b.color }}>
+                                {b.label.slice(0, 2).toUpperCase()}
+                              </div>
+                              <span className="font-medium text-gray-700 dark:text-gray-300 text-xs">{b.label}</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-xs text-gray-600 dark:text-gray-400">{formatCurrency(b.total, currency)}</td>
+                          <td className="py-2.5 px-3 text-right font-mono text-xs text-gray-400">{formatCurrency(b.avgPerMonth, currency)}</td>
+                          <td className="py-2.5 px-3 text-right text-xs text-gray-400">{b.monthCount} ay</td>
+                          <td className="py-2.5 pr-3">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 justify-end">
+                              <button onClick={() => toggleBrandActive(b)} className="p-1 text-gray-300 hover:text-green-500" title="Aktife al"><ToggleLeft size={15} /></button>
+                              <Link href={`/brands/${b.brand}`} className="p-1 text-gray-300 hover:text-brand-500"><ArrowRight size={13} /></Link>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {dbOnlyBrands.filter(b => !b.isActive).map((b) => (
+                        <tr key={b.id} className="group hover:opacity-100 transition-opacity">
+                          <td className="py-2.5 pl-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: b.color }}>
+                                {b.label.slice(0, 2).toUpperCase()}
+                              </div>
+                              <span className="font-medium text-gray-700 dark:text-gray-300 text-xs">{b.label}</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-xs text-gray-300">—</td>
+                          <td className="py-2.5 px-3 text-right text-xs text-gray-300">—</td>
+                          <td className="py-2.5 px-3 text-right text-xs text-gray-300">—</td>
+                          <td className="py-2.5 pr-3">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 justify-end">
+                              <button onClick={() => updateBrand(b.id, { isActive: true })} className="p-1 text-gray-300 hover:text-green-500"><ToggleLeft size={15} /></button>
+                              <button onClick={() => setDeleteConfirm(b.id)} className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={13} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-
-                {b.lastRemaining != null && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                    <AlertCircle size={13} className="text-amber-500 flex-shrink-0" />
-                    <span className="text-xs text-amber-700 dark:text-amber-300">
-                      Kalan: <span className="font-semibold font-mono">{formatCurrency(b.lastRemaining, currency)}</span>
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                  <span className="flex items-center gap-1"><Calendar size={11} />{b.monthCount} ay</span>
-                  <span className="flex items-center gap-1"><Receipt size={11} />Ort. {formatCurrency(b.avgPerMonth, currency)}/ay</span>
-                </div>
-
-                <Link href={`/brands/${b.brand}`}
-                  className="mt-auto flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors"
-                  style={{ backgroundColor: b.color + '12', color: b.color }}>
-                  Detay görüntüle <ArrowRight size={13} />
-                </Link>
               </Card>
-            );
-          })}
-
-          {/* DB-only brands */}
-          {dbOnlyBrands.map((b) => {
-            const thisMonthRec = receivableMap[`${b.value}__${THIS_MONTH}`];
-            const thisMonthTotal = thisMonthRec ? (thisMonthRec.fixedAmount + thisMonthRec.extraAmount) : 0;
-            const hasTarget = (b.monthlyTarget ?? 0) > 0;
-
-            return (
-              <Card key={b.id} className={`flex flex-col gap-3 border-dashed group ${!b.isActive ? 'opacity-40' : ''}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: b.color }}>M</div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{b.label}</p>
-                      <p className="text-xs text-gray-400">İşlem yok</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-0.5 flex-shrink-0">
-                    <div className="relative">
-                      <button onClick={() => setColorEditBrand(colorEditBrand === b.id ? null : b.id)}
-                        className="p-1 text-gray-300 hover:text-brand-500 transition-colors opacity-0 group-hover:opacity-100">
-                        <Palette size={14} />
-                      </button>
-                      {colorEditBrand === b.id && (
-                        <div className="absolute right-0 top-7 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-3 w-48">
-                          <div className="flex flex-wrap gap-1.5 mb-2">
-                            {COLOR_PRESETS.map((c) => (
-                              <button key={c} onClick={() => { updateBrand(b.id, { color: c }); setColorEditBrand(null); }}
-                                className={`w-6 h-6 rounded-full transition-all ${b.color === c ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : ''}`}
-                                style={{ backgroundColor: c }} />
-                            ))}
-                          </div>
-                          <input type="color" value={b.color}
-                            onChange={(e) => { updateBrand(b.id, { color: e.target.value }); setColorEditBrand(null); }}
-                            className="w-full h-7 rounded cursor-pointer border border-gray-200 dark:border-gray-700" />
-                        </div>
-                      )}
-                    </div>
-                    <button onClick={() => openTargetModalDbOnly(b)}
-                      className="p-1 text-gray-300 hover:text-brand-500 transition-colors opacity-0 group-hover:opacity-100">
-                      <Target size={14} />
-                    </button>
-                    <button onClick={() => updateBrand(b.id, { isActive: !b.isActive })}
-                      className="p-1 text-gray-400 hover:text-brand-500 transition-colors">
-                      {b.isActive ? <ToggleRight size={18} className="text-green-500" /> : <ToggleLeft size={18} />}
-                    </button>
-                    <button onClick={() => setDeleteConfirm(b.id)}
-                      className="p-1 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {hasTarget && (
-                  <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden text-xs">
-                    <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 dark:bg-gray-800/50">
-                      <span className="text-gray-400 flex items-center gap-1"><Target size={10} /> Aylık Hedef</span>
-                      <span className="font-semibold font-mono text-gray-700 dark:text-gray-300">{formatCurrency(b.monthlyTarget ?? 0, b.targetCurrency ?? 'TRY')}</span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-1.5">
-                      <span className="text-gray-400">Bu Ay</span>
-                      <span className="font-semibold font-mono text-gray-700 dark:text-gray-300">{thisMonthTotal > 0 ? formatCurrency(thisMonthTotal, 'TRY') : '—'}</span>
-                    </div>
-                  </div>
-                )}
-
-                <button onClick={() => openReceivableModal(b.value, b.label, b.color)}
-                  className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-lg border border-dashed text-xs font-medium transition-colors"
-                  style={{ borderColor: b.color + '60', color: b.color }}>
-                  <Plus size={11} /> {thisMonthRec ? 'Bu Ay Tahsilatı Düzenle' : 'Bu Ay Tahsilat Ekle'}
-                </button>
-              </Card>
-            );
-          })}
-        </div>
+            </section>
+          )}
+        </>
       )}
 
       {/* Add Brand Modal */}

@@ -3,7 +3,7 @@
 export const runtime = 'edge';
 
 import { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Wallet, Target, ArrowRight, ChevronLeft, ChevronRight, Eye, EyeOff, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Target, ArrowRight, ChevronLeft, ChevronRight, Eye, EyeOff, CheckCircle2, AlertCircle, Clock, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useFinanceStore, useMonthlyStats, useBudgetProgress } from '@/store/useFinanceStore';
 import { StatCard } from '@/components/ui/Card';
@@ -469,6 +469,50 @@ export default function DashboardPage() {
           </div>
         </Card>
       )}
+
+      {/* ── Active clients ── */}
+      {(() => {
+        const activeClients = dbBrands.filter((b) => b.isActive);
+        if (activeClients.length === 0) return null;
+        return (
+          <Card padding="sm">
+            <div className="flex items-center justify-between px-2 pb-3 mb-1 border-b border-gray-100 dark:border-gray-800">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Users size={14} className="text-brand-500" />
+                Aktif Müşteriler
+                <span className="text-xs font-normal text-white bg-brand-500 rounded-full px-1.5 py-0.5">{activeClients.length}</span>
+              </h2>
+              <Link href="/brands" className="text-xs text-brand-600 dark:text-brand-400 flex items-center gap-1 hover:underline">
+                Tümü <ArrowRight size={11} />
+              </Link>
+            </div>
+            <div className="flex flex-wrap gap-2 px-2 py-2">
+              {activeClients.map((b) => {
+                const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                const rec = brandReceivables.find((r) => r.brand === b.value && r.month === thisMonthKey);
+                const received = rec ? rec.fixedAmount + rec.extraAmount : 0;
+                const hasTarget = (b.monthlyTarget ?? 0) > 0;
+                const complete = hasTarget && received >= (b.monthlyTarget ?? 0);
+                const today = now.getDate();
+                const overdue = hasTarget && !complete && today > (b.dueDay ?? 1);
+                return (
+                  <Link key={b.id} href="/brands"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors bg-white dark:bg-gray-900">
+                    <div className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center text-white text-[9px] font-bold"
+                      style={{ backgroundColor: b.color }}>
+                      {b.label.slice(0, 2).toUpperCase()}
+                    </div>
+                    <span className="text-xs font-medium text-gray-800 dark:text-gray-200 whitespace-nowrap">{b.label}</span>
+                    {hasTarget && (
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${complete ? 'bg-green-500' : overdue ? 'bg-red-500' : 'bg-orange-400'}`} />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })()}
 
       <Card>
         <div className="flex items-center justify-between mb-4">
