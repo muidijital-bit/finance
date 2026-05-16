@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Transaction, Budget, Investment, Goal, PaymentSchedule, Brand, CustomCategory, Employee, Loan } from '@/types';
+import { Transaction, Budget, Investment, Goal, PaymentSchedule, Brand, CustomCategory, Employee, Loan, BrandReceivable } from '@/types';
 
 const api = {
   get: (path: string) => fetch(path).then((r) => r.json()),
@@ -19,6 +19,7 @@ interface FinanceState {
   customCategories: CustomCategory[];
   employees: Employee[];
   loans: Loan[];
+  brandReceivables: BrandReceivable[];
   currency: string;
   darkMode: boolean;
   initialized: boolean;
@@ -62,6 +63,10 @@ interface FinanceState {
   updateLoan: (id: string, l: Partial<Loan>) => Promise<void>;
   deleteLoan: (id: string) => Promise<void>;
 
+  addBrandReceivable: (r: Omit<BrandReceivable, 'id'>) => Promise<void>;
+  updateBrandReceivable: (id: string, r: Partial<BrandReceivable>) => Promise<void>;
+  deleteBrandReceivable: (id: string) => Promise<void>;
+
   toggleDarkMode: () => void;
   setCurrency: (currency: string) => void;
 }
@@ -78,13 +83,14 @@ export const useFinanceStore = create<FinanceState>()(
       customCategories: [],
       employees: [],
       loans: [],
+      brandReceivables: [],
       currency: 'TRY',
       darkMode: false,
       initialized: false,
 
       init: async () => {
         if (get().initialized) return;
-        const [transactions, budgets, investments, goals, paymentSchedules, brands, customCategories, employees, loans] = await Promise.all([
+        const [transactions, budgets, investments, goals, paymentSchedules, brands, customCategories, employees, loans, brandReceivables] = await Promise.all([
           api.get('/api/transactions'),
           api.get('/api/budgets'),
           api.get('/api/investments'),
@@ -94,8 +100,9 @@ export const useFinanceStore = create<FinanceState>()(
           api.get('/api/custom-categories'),
           api.get('/api/employees'),
           api.get('/api/loans'),
+          api.get('/api/brand-receivables'),
         ]);
-        set({ transactions, budgets, investments, goals, paymentSchedules, brands, customCategories, employees, loans, initialized: true });
+        set({ transactions, budgets, investments, goals, paymentSchedules, brands, customCategories, employees, loans, brandReceivables, initialized: true });
       },
 
       addTransaction: async (t) => {
@@ -225,6 +232,21 @@ export const useFinanceStore = create<FinanceState>()(
       deleteEmployee: async (id) => {
         await api.del(`/api/employees/${id}`);
         set((s) => ({ employees: s.employees.filter((x) => x.id !== id) }));
+      },
+
+      addBrandReceivable: async (r) => {
+        const { id } = await api.post('/api/brand-receivables', r);
+        set((s) => ({ brandReceivables: [{ ...r, id }, ...s.brandReceivables] }));
+      },
+      updateBrandReceivable: async (id, r) => {
+        const current = get().brandReceivables.find((x) => x.id === id)!;
+        const updated = { ...current, ...r };
+        await api.put(`/api/brand-receivables/${id}`, updated);
+        set((s) => ({ brandReceivables: s.brandReceivables.map((x) => x.id === id ? updated : x) }));
+      },
+      deleteBrandReceivable: async (id) => {
+        await api.del(`/api/brand-receivables/${id}`);
+        set((s) => ({ brandReceivables: s.brandReceivables.filter((x) => x.id !== id) }));
       },
 
       addLoan: async (l) => {

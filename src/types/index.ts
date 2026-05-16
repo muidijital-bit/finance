@@ -42,6 +42,18 @@ export interface Brand {
   color: string;
   isActive: boolean;
   note?: string;
+  monthlyTarget?: number;
+  targetCurrency?: string;
+}
+
+export interface BrandReceivable {
+  id: string;
+  brand: string;
+  month: string; // YYYY-MM
+  fixedAmount: number;
+  extraAmount: number;
+  currency: string;
+  note?: string;
 }
 
 export interface CustomCategory {

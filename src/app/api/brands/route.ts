@@ -8,9 +8,14 @@ export async function GET() {
   if (!db) return NextResponse.json([]);
   const { results } = await db.prepare('SELECT * FROM brands ORDER BY label ASC').all();
   return NextResponse.json(results.map((r: any) => ({
-    ...r,
+    id: r.id,
+    value: r.value,
+    label: r.label,
+    color: r.color,
     isActive: r.is_active === 1,
     note: r.note ?? undefined,
+    monthlyTarget: r.monthly_target ?? 0,
+    targetCurrency: r.target_currency ?? 'TRY',
   })));
 }
 

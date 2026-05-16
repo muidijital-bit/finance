@@ -6,9 +6,11 @@ import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFinanceStore } from '@/store/useFinanceStore';
 import Card from '@/components/ui/Card';
+import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
 import { formatCurrency, formatDate, BRAND_MAP, SERVICE_LABELS, MONTHS_TR } from '@/lib/utils';
-import { ArrowLeft, TrendingUp, Calendar, Receipt, AlertCircle, CheckCircle2, Plus, Trash2, StickyNote } from 'lucide-react';
-import { BrandNote } from '@/types';
+import { ArrowLeft, TrendingUp, Calendar, Receipt, AlertCircle, CheckCircle2, Plus, Trash2, StickyNote, Target, CircleDollarSign, Pencil } from 'lucide-react';
+import { BrandNote, BrandReceivable } from '@/types';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -33,11 +35,30 @@ export default function BrandDetailPage() {
   const params = useParams<{ brand: string }>();
   const brand = decodeURIComponent(params.brand);
   const router = useRouter();
-  const { transactions, currency, initialized, brands: dbBrands } = useFinanceStore();
+  const { transactions, currency, initialized, brands: dbBrands, brandReceivables, addBrandReceivable, updateBrandReceivable, deleteBrandReceivable } = useFinanceStore();
 
   const [notes, setNotes] = useState<BrandNote[]>([]);
   const [noteInput, setNoteInput] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+
+  // Receivable modal state
+  const THIS_MONTH = new Date().toISOString().slice(0, 7);
+  const [recModal, setRecModal] = useState<{ existing?: BrandReceivable; month: string } | null>(null);
+  const [recFixed, setRecFixed] = useState('');
+  const [recExtra, setRecExtra] = useState('');
+  const [recNote, setRecNote] = useState('');
+  const [recCurrency, setRecCurrencyLocal] = useState('TRY');
+
+  // Receivables for this brand
+  const myReceivables = useMemo(() =>
+    brandReceivables.filter((r) => r.brand === brand).sort((a, b) => b.month.localeCompare(a.month)),
+    [brandReceivables, brand]
+  );
+  const receivableByMonth = useMemo(() => {
+    const map: Record<string, BrandReceivable> = {};
+    myReceivables.forEach((r) => { map[r.month] = r; });
+    return map;
+  }, [myReceivables]);
 
   const dbBrandInfo = dbBrands.find((b) => b.value === brand);
   const info = dbBrandInfo ?? BRAND_MAP[brand];
@@ -66,6 +87,23 @@ export default function BrandDetailPage() {
     setNotes((prev) => [{ id: note.id, brand: note.brand, content: note.content, createdAt: note.createdAt }, ...prev]);
     setNoteInput('');
     setSavingNote(false);
+  }
+
+  function openRecModal(month: string) {
+    const existing = receivableByMonth[month];
+    setRecModal({ existing, month });
+    setRecFixed(existing ? String(existing.fixedAmount) : '');
+    setRecExtra(existing ? String(existing.extraAmount) : '');
+    setRecNote(existing?.note ?? '');
+    setRecCurrencyLocal(existing?.currency ?? 'TRY');
+  }
+
+  async function saveReceivable() {
+    if (!recModal) return;
+    const payload = { brand, month: recModal.month, fixedAmount: parseFloat(recFixed) || 0, extraAmount: parseFloat(recExtra) || 0, currency: recCurrency, note: recNote };
+    if (recModal.existing) await updateBrandReceivable(recModal.existing.id, payload);
+    else await addBrandReceivable(payload);
+    setRecModal(null);
   }
 
   async function deleteNote(id: string) {
@@ -199,6 +237,97 @@ export default function BrandDetailPage() {
           </ResponsiveContainer>
         </Card>
       )}
+
+      {/* Receivables summary */}
+      {(dbBrandInfo?.monthlyTarget ?? 0) > 0 || myReceivables.length > 0 ? (
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Target size={14} style={{ color }} /> Aylık Tahsilat Takibi
+            </h2>
+            <button onClick={() => openRecModal(THIS_MONTH)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors"
+              style={{ backgroundColor: color }}>
+              <Plus size={12} /> Bu Ay Giriş
+            </button>
+          </div>
+
+          {(dbBrandInfo?.monthlyTarget ?? 0) > 0 && (
+            <div className="mb-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 text-xs flex items-center justify-between">
+              <span className="text-gray-500 flex items-center gap-1"><Target size={11} /> Aylık Hedef</span>
+              <span className="font-semibold font-mono text-gray-900 dark:text-white">{formatCurrency(dbBrandInfo!.monthlyTarget!, dbBrandInfo!.targetCurrency ?? 'TRY')}</span>
+            </div>
+          )}
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-100 dark:border-gray-800">
+                  <th className="text-left font-medium text-gray-400 pb-2 pl-2 w-24">Ay</th>
+                  <th className="text-right font-medium text-gray-400 pb-2 px-2">Sabit</th>
+                  <th className="text-right font-medium text-gray-400 pb-2 px-2">Ekstra</th>
+                  <th className="text-right font-medium text-gray-400 pb-2 px-2">Toplam</th>
+                  {(dbBrandInfo?.monthlyTarget ?? 0) > 0 && <th className="text-right font-medium text-gray-400 pb-2 pr-2">Durum</th>}
+                  <th className="w-8 pb-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                {/* Current month if not already in list */}
+                {!receivableByMonth[THIS_MONTH] && (
+                  <tr className="opacity-40">
+                    <td className="py-2.5 pl-2 font-medium text-gray-700 dark:text-gray-300">{THIS_MONTH}</td>
+                    <td className="py-2.5 px-2 text-right text-gray-300">—</td>
+                    <td className="py-2.5 px-2 text-right text-gray-300">—</td>
+                    <td className="py-2.5 px-2 text-right text-gray-300">—</td>
+                    {(dbBrandInfo?.monthlyTarget ?? 0) > 0 && <td className="py-2.5 pr-2 text-right text-orange-400">Bekleniyor</td>}
+                    <td className="py-2.5 pr-1 text-right">
+                      <button onClick={() => openRecModal(THIS_MONTH)} className="p-1 text-gray-300 hover:text-brand-500"><Plus size={12} /></button>
+                    </td>
+                  </tr>
+                )}
+                {myReceivables.map((r) => {
+                  const total = r.fixedAmount + r.extraAmount;
+                  const target = dbBrandInfo?.monthlyTarget ?? 0;
+                  const ok = target > 0 && total >= target;
+                  const short = target > 0 && total < target;
+                  return (
+                    <tr key={r.id}>
+                      <td className="py-2.5 pl-2 font-medium text-gray-700 dark:text-gray-300">{r.month}</td>
+                      <td className="py-2.5 px-2 text-right font-mono text-gray-600 dark:text-gray-400">{formatCurrency(r.fixedAmount, r.currency)}</td>
+                      <td className="py-2.5 px-2 text-right font-mono text-blue-600 dark:text-blue-400">{r.extraAmount > 0 ? formatCurrency(r.extraAmount, r.currency) : <span className="text-gray-300">—</span>}</td>
+                      <td className="py-2.5 px-2 text-right font-mono font-semibold text-green-600 dark:text-green-400">{formatCurrency(total, r.currency)}</td>
+                      {target > 0 && (
+                        <td className="py-2.5 pr-2 text-right">
+                          {ok ? <span className="text-green-600 dark:text-green-400 flex items-center justify-end gap-1"><CheckCircle2 size={11} /> Tam</span>
+                            : <span className="text-orange-500">{formatCurrency(target - total, r.currency)} eksik</span>}
+                        </td>
+                      )}
+                      <td className="py-2.5 pr-1 text-right">
+                        <div className="flex items-center gap-0.5 justify-end opacity-0 hover:opacity-100 group-hover:opacity-100">
+                          <button onClick={() => openRecModal(r.month)} className="p-1 text-gray-300 hover:text-brand-500"><Pencil size={11} /></button>
+                          <button onClick={() => deleteBrandReceivable(r.id)} className="p-1 text-gray-300 hover:text-red-500"><Trash2 size={11} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {myReceivables.length > 0 && (
+                <tfoot>
+                  <tr className="border-t border-gray-200 dark:border-gray-700">
+                    <td className="pt-2 pl-2 text-gray-500 font-medium">Toplam</td>
+                    <td className="pt-2 px-2 text-right font-mono font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(myReceivables.reduce((s, r) => s + r.fixedAmount, 0), currency)}</td>
+                    <td className="pt-2 px-2 text-right font-mono font-semibold text-blue-600 dark:text-blue-400">{formatCurrency(myReceivables.reduce((s, r) => s + r.extraAmount, 0), currency)}</td>
+                    <td className="pt-2 px-2 text-right font-mono font-semibold text-green-600 dark:text-green-400">{formatCurrency(myReceivables.reduce((s, r) => s + r.fixedAmount + r.extraAmount, 0), currency)}</td>
+                    {(dbBrandInfo?.monthlyTarget ?? 0) > 0 && <td />}
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </Card>
+      ) : null}
 
       {/* Monthly payment table + notes side by side on large screens */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -344,6 +473,59 @@ export default function BrandDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Receivable Modal */}
+      <Modal open={!!recModal} onClose={() => setRecModal(null)} title="Aylık Tahsilat Girişi">
+        {recModal && (
+          <div className="space-y-4">
+            <p className="text-xs text-gray-500">{recModal.month} ayı tahsilatı — <span className="font-medium text-gray-700 dark:text-gray-300">{labelText}</span></p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Sabit Tahsilat</label>
+                <input type="number" placeholder="0.00" value={recFixed}
+                  onChange={(e) => setRecFixed(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  autoFocus />
+                <p className="text-xs text-gray-400 mt-1">Retainer / aylık sabit</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Ekstra Tahsilat</label>
+                <input type="number" placeholder="0.00" value={recExtra}
+                  onChange={(e) => setRecExtra(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                <p className="text-xs text-gray-400 mt-1">Ek proje / fazla mesai</p>
+              </div>
+            </div>
+            {(recFixed || recExtra) && (
+              <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 text-xs">
+                <span className="text-gray-500">Toplam</span>
+                <span className="font-semibold font-mono text-green-600 dark:text-green-400">
+                  {formatCurrency((parseFloat(recFixed) || 0) + (parseFloat(recExtra) || 0), recCurrency)}
+                </span>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Para Birimi</label>
+                <select value={recCurrency} onChange={(e) => setRecCurrencyLocal(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                  {['TRY', 'USD', 'EUR', 'GBP'].map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Not</label>
+                <input type="text" placeholder="Fatura no..." value={recNote}
+                  onChange={(e) => setRecNote(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="secondary" className="flex-1" onClick={() => setRecModal(null)}>İptal</Button>
+              <Button variant="primary" className="flex-1" onClick={saveReceivable}>Kaydet</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
